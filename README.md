@@ -38,6 +38,8 @@ npm --prefix backend run start:dev                                    # http://l
 npm --prefix frontend install && npm --prefix frontend run dev        # http://localhost:5173
 ```
 
+Клиент на GitHub Pages обращается к backend по адресу из переменной репозитория `API_URL` (по умолчанию `http://localhost:3000`, то есть к локально запущенному серверу). Адреса клиентов, которым backend разрешает запросы, перечисляются через запятую в `CLIENT_URL`.
+
 Если порт 5432 занят локальным PostgreSQL, укажите в `.env` другой порт: `POSTGRES_PORT=5433` и тот же порт в `DATABASE_URL`.
 
 Учётная запись модератора после `db:seed`: `moderator@board.local` / `moderator123` (меняется переменными `MODERATOR_EMAIL`, `MODERATOR_PASSWORD`).
@@ -102,6 +104,7 @@ git push origin v0.1.0
 | `CI` | push в `main`, Pull Request в `main` | `lint` — ESLint и Prettier; `test` — модульные и интеграционные тесты, отчёты JUnit и покрытие; `build` — сборка и артефакты `backend-dist`, `frontend-dist` (только после успешных `lint` и `test`); `metrics` — сбор метрик |
 | `commitlint` | Pull Request в `main` | проверка сообщений всех коммитов ветки |
 | `release` | push тега `v*.*.*` | тесты, сборка, метрики, создание GitHub Release |
+| `pages` | push в `main` с изменениями `frontend/` | сборка клиента и публикация на GitHub Pages: https://ilia1204.github.io/notice-board/ |
 
 ## Метрики
 
