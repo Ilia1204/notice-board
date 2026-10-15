@@ -1,0 +1,17 @@
+{
+  "name": "notice-board",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Web-приложение доски объявлений с категоризацией и модерацией контента",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
+    "husky": "^9.1.7"
+  }
+}
