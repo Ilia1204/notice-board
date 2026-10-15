@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  checks: write
+
+env:
+  NODE_VERSION: 22
+
+jobs:
+  lint:
+    name: lint (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [backend, frontend]
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Prettier
+        run: npm run format:check
+
+  test:
+    name: test (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [backend, frontend]
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+      - run: npm ci
+      - name: Модульные тесты с покрытием
+        run: npm run test:cov
+      - name: Интеграционные тесты
+        if: matrix.project == 'backend'
+        run: npm run test:e2e
+      - name: Отчёт о тестах
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Тесты (${{ matrix.project }})
+          path: ${{ matrix.project }}/reports/*.xml
+          reporter: java-junit
+      - name: Покрытие в сводку
+        if: always()
+        run: |
+          echo "### Покрытие кода: ${{ matrix.project }}" >> "$GITHUB_STEP_SUMMARY"
+          node -e "const t=require('./coverage/coverage-summary.json').total;console.log('| Строки | Ветвления | Функции |\n|---|---|---|\n| '+t.lines.pct+'% | '+t.branches.pct+'% | '+t.functions.pct+'% |')" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports-${{ matrix.project }}
+          path: |
+            ${{ matrix.project }}/coverage/
+            ${{ matrix.project }}/reports/
+
+  build:
+    name: build (${{ matrix.project }})
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [backend, frontend]
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.project }}-dist
+          path: ${{ matrix.project }}/dist/
+
+  metrics:
+    name: metrics
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci --prefix backend && npm ci --prefix frontend
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-reports-backend
+          path: backend
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-reports-frontend
+          path: frontend
+      - name: Сбор метрик
+        run: npm run metrics
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: metrics
+          path: metrics/

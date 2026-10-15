@@ -145,5 +145,5 @@ vite.config.ts.timestamp-*
 # Project
 dist/
 reports/
-metrics/*.tmp
+metrics/
 .DS_Store
