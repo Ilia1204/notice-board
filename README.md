@@ -31,9 +31,24 @@ cp .env.example .env
 docker compose up -d          # PostgreSQL на localhost:5432
 
 npm install                   # хуки git (husky + commitlint)
-npm --prefix backend install && npm --prefix backend run start:dev    # http://localhost:3000
+npm --prefix backend install
+npm --prefix backend run db:deploy   # таблицы БД (миграции Prisma)
+npm --prefix backend run db:seed     # модератор и базовые категории
+npm --prefix backend run start:dev                                    # http://localhost:3000
 npm --prefix frontend install && npm --prefix frontend run dev        # http://localhost:5173
 ```
+
+Если порт 5432 занят локальным PostgreSQL, укажите в `.env` другой порт: `POSTGRES_PORT=5433` и тот же порт в `DATABASE_URL`.
+
+Учётная запись модератора после `db:seed`: `moderator@board.local` / `moderator123` (меняется переменными `MODERATOR_EMAIL`, `MODERATOR_PASSWORD`).
+
+## API
+
+| Метод | Адрес | Доступ | Назначение |
+|---|---|---|---|
+| POST | `/auth/register` | все | регистрация, возвращает JWT |
+| POST | `/auth/login` | все | вход, возвращает JWT |
+| GET | `/auth/me` | авторизованные | текущий пользователь |
 
 ## Правила работы с кодом
 
