@@ -49,6 +49,10 @@ npm --prefix frontend install && npm --prefix frontend run dev        # http://l
 | POST | `/auth/register` | все | регистрация, возвращает JWT |
 | POST | `/auth/login` | все | вход, возвращает JWT |
 | GET | `/auth/me` | авторизованные | текущий пользователь |
+| GET | `/categories` | все | список категорий |
+| POST | `/categories` | модератор | создание категории |
+| PATCH | `/categories/:id` | модератор | изменение категории |
+| DELETE | `/categories/:id` | модератор | удаление категории |
 
 ## Правила работы с кодом
 

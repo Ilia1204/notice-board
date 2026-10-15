@@ -1,11 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
+import { mockApi } from '../test/mock-api';
 
 const user = { id: 1, email: 'ivan@mail.ru', name: 'Иван', role: 'USER' };
-
-const jsonResponse = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status });
 
 function fillAndSubmit(fields: Record<string, string>, button: string) {
   for (const [label, value] of Object.entries(fields)) {
@@ -22,6 +20,7 @@ describe('вход и регистрация', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('гость видит ссылки входа и регистрации', () => {
+    mockApi({});
     render(<App />);
     expect(screen.getByRole('link', { name: 'Войти' })).toBeInTheDocument();
     expect(
@@ -30,12 +29,7 @@ describe('вход и регистрация', () => {
   });
 
   it('после входа показывает имя пользователя и сохраняет токен', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(jsonResponse(200, { accessToken: 'tok', user })),
-    );
+    mockApi({ 'POST /auth/login': [200, { accessToken: 'tok', user }] });
     window.location.hash = '#/login';
     render(<App />);
 
@@ -47,14 +41,9 @@ describe('вход и регистрация', () => {
   });
 
   it('показывает ошибку при неверном пароле', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          jsonResponse(401, { message: 'Неверный email или пароль' }),
-        ),
-    );
+    mockApi({
+      'POST /auth/login': [401, { message: 'Неверный email или пароль' }],
+    });
     window.location.hash = '#/login';
     render(<App />);
 
@@ -66,10 +55,9 @@ describe('вход и регистрация', () => {
   });
 
   it('регистрирует нового пользователя', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(jsonResponse(201, { accessToken: 'tok', user }));
-    vi.stubGlobal('fetch', fetchMock);
+    const fetchMock = mockApi({
+      'POST /auth/register': [201, { accessToken: 'tok', user }],
+    });
     window.location.hash = '#/register';
     render(<App />);
 
@@ -79,14 +67,15 @@ describe('вход и регистрация', () => {
     );
 
     expect(await screen.findByText('Иван')).toBeInTheDocument();
-    expect(fetchMock.mock.calls[0][0]).toBe(
+    expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:3000/auth/register',
+      expect.objectContaining({ method: 'POST' }),
     );
   });
 
   it('восстанавливает вход по сохранённому токену и выходит', async () => {
     localStorage.setItem('notice-board.token', 'tok');
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, user)));
+    mockApi({ 'GET /auth/me': [200, user] });
     render(<App />);
 
     expect(await screen.findByText('Иван')).toBeInTheDocument();
@@ -97,10 +86,7 @@ describe('вход и регистрация', () => {
 
   it('сбрасывает просроченный токен', async () => {
     localStorage.setItem('notice-board.token', 'old');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(jsonResponse(401, { message: 'Unauthorized' })),
-    );
+    mockApi({ 'GET /auth/me': [401, { message: 'Unauthorized' }] });
     render(<App />);
 
     await vi.waitFor(() =>

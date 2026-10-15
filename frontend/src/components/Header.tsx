@@ -1,4 +1,10 @@
-import { ClipboardList, LogIn, LogOut, UserPlus } from 'lucide-react';
+import {
+  ClipboardList,
+  FolderCog,
+  LogIn,
+  LogOut,
+  UserPlus,
+} from 'lucide-react';
 import { Link } from 'react-router';
 import { useAuth } from '../api/auth-context';
 
@@ -14,6 +20,11 @@ export function Header() {
       <nav className="header__nav">
         {user ? (
           <>
+            {user.role === 'MODERATOR' && (
+              <Link to="/categories">
+                <FolderCog size={16} aria-hidden /> Категории
+              </Link>
+            )}
             <span className="header__user">
               {user.name}
               {user.role === 'MODERATOR' && ' (модератор)'}
