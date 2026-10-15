@@ -80,7 +80,7 @@
       [
         "jest-junit",
         {
-          "outputDirectory": "../reports",
+          "outputDirectory": "<rootDir>/../reports",
           "outputName": "junit.xml"
         }
       ]
