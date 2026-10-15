@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: notice-board-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-notice}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-notice}
+      POSTGRES_DB: ${POSTGRES_DB:-notice_board}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
