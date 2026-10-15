@@ -7,7 +7,8 @@
     "prepare": "husky",
     "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
     "test": "npm --prefix backend test && npm --prefix frontend test",
-    "build": "npm --prefix backend run build && npm --prefix frontend run build"
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "metrics": "node scripts/collect-metrics.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
