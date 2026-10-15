@@ -25,10 +25,10 @@ export function Header() {
                 <FolderCog size={16} aria-hidden /> Категории
               </Link>
             )}
-            <span className="header__user">
-              {user.name}
-              {user.role === 'MODERATOR' && ' (модератор)'}
-            </span>
+            <span className="header__user">{user.name}</span>
+            {user.role === 'MODERATOR' && (
+              <span className="badge">модератор</span>
+            )}
             <button type="button" className="button-link" onClick={logout}>
               <LogOut size={16} aria-hidden /> Выйти
             </button>
