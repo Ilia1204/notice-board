@@ -1,88 +1,273 @@
+/* «Городская доска»: кремовая бумага, тёмно-синяя шапка, стикеры-ярлыки */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --paper: #f3ead8;
+  --paper-dot: #e2d4b8;
+  --sheet: #fffdf8;
+  --ink: #1d2433;
+  --ink-soft: #5b6170;
+  --line: #d9cbb0;
+  --accent: #e4572e;
+  --accent-dark: #c2421c;
+  --error: #b42318;
+  --sticker-1: #ffe27a;
+  --sticker-2: #ffc2cf;
+  --sticker-3: #b5ead7;
+  --sticker-4: #b8dcff;
+  --font-display: 'Unbounded', 'Arial Black', sans-serif;
+  --font-body: 'Golos Text', system-ui, sans-serif;
+
+  font-family: var(--font-body);
   line-height: 1.5;
-  color: #1f2328;
-  background-color: #f6f8fa;
+  color: var(--ink);
+  background-color: var(--paper);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: var(--paper);
+  background-image: radial-gradient(var(--paper-dot) 1px, transparent 1px);
+  background-size: 18px 18px;
 }
 
 a {
-  color: #0969da;
+  color: var(--accent-dark);
 }
 
+h1,
+h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Шапка */
 .header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px 16px;
-  padding: 12px 24px;
-  background: #fff;
-  border-bottom: 1px solid #d0d7de;
+  gap: 8px 20px;
+  padding: 14px 32px;
+  background: var(--ink);
+  color: var(--paper);
+  border-bottom: 4px solid var(--accent);
 }
 
 .header__brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: inherit;
   text-decoration: none;
 }
 
+.header__brand svg {
+  padding: 6px;
+  background: var(--accent);
+  border-radius: 8px;
+  color: #fff;
+}
+
 .header h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .header__nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
 .header__nav a,
-.button-link {
+.header__nav .button-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  color: var(--paper);
+  font-weight: 500;
   text-decoration: none;
 }
 
+.header__nav a:hover,
+.header__nav .button-link:hover {
+  color: var(--sticker-1);
+}
+
 .header__user {
-  color: #59636e;
+  font-weight: 600;
+}
+
+.badge {
+  margin-left: -10px;
+  padding: 2px 8px;
+  background: var(--sticker-1);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .button-link {
   padding: 0;
   border: 0;
   background: none;
-  color: #0969da;
+  color: var(--accent-dark);
   font: inherit;
   cursor: pointer;
 }
 
+/* Общая раскладка */
 .content {
-  padding: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
 }
 
+.hero {
+  margin-bottom: 40px;
+}
+
+.hero__kicker {
+  margin: 0 0 8px;
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero__title {
+  max-width: 720px;
+  margin: 0;
+  font-size: clamp(26px, 5vw, 44px);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.hero__title span {
+  background: linear-gradient(transparent 62%, var(--sticker-1) 62%);
+}
+
+.section-title {
+  margin: 0 0 20px;
+  font-size: 20px;
+}
+
+.note {
+  margin-top: 32px;
+  color: var(--ink-soft);
+}
+
+/* Лист бумаги, приколотый скотчем */
+.panel,
+.form {
+  position: relative;
+  padding: 32px 28px 28px;
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 10px 24px -14px rgb(29 36 51 / 45%);
+}
+
+.panel::before,
+.form::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 96px;
+  height: 24px;
+  background: rgb(255 226 122 / 75%);
+  transform: translateX(-50%) rotate(-3deg);
+}
+
+.panel {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 22px;
+}
+
+/* Стикеры категорий */
+.stickers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 24px 20px;
+  margin: 0;
+  padding: 8px 0 0;
+  list-style: none;
+}
+
+.sticker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 72px;
+  padding: 22px 16px 16px;
+  background: var(--sticker-1);
+  box-shadow: 0 8px 14px -10px rgb(29 36 51 / 55%);
+  transform: rotate(-1.5deg);
+  transition: transform 0.15s ease;
+}
+
+.sticker:nth-child(4n + 2) {
+  background: var(--sticker-2);
+  transform: rotate(1.2deg);
+}
+
+.sticker:nth-child(4n + 3) {
+  background: var(--sticker-3);
+  transform: rotate(-0.6deg);
+}
+
+.sticker:nth-child(4n + 4) {
+  background: var(--sticker-4);
+  transform: rotate(1.8deg);
+}
+
+.sticker:hover {
+  transform: rotate(0) scale(1.03);
+}
+
+.sticker strong {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sticker span {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.sticker__pin {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  color: var(--accent);
+  transform: translateX(-50%) rotate(20deg);
+}
+
+/* Формы */
 .form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 360px;
-  margin: 0 auto;
-  padding: 24px;
-  background: #fff;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
+  gap: 14px;
+  max-width: 380px;
+  margin: 24px auto 0;
 }
 
 .form h2 {
-  margin: 0;
+  margin: 0 0 4px;
+  font-size: 24px;
 }
 
 .form label {
@@ -90,6 +275,7 @@ a {
   flex-direction: column;
   gap: 4px;
   font-size: 14px;
+  font-weight: 500;
 }
 
 input,
@@ -100,18 +286,40 @@ button {
 
 input,
 textarea {
-  padding: 6px 10px;
-  border: 1px solid #d0d7de;
+  padding: 9px 12px;
+  background: #fff;
+  border: 2px solid var(--ink);
   border-radius: 6px;
+  color: var(--ink);
+}
+
+input:focus,
+textarea:focus {
+  outline: 3px solid var(--sticker-1);
+  outline-offset: 0;
 }
 
 button[type='submit'] {
-  padding: 8px 12px;
-  border: 0;
+  padding: 10px 16px;
+  background: var(--accent);
+  border: 2px solid var(--ink);
   border-radius: 6px;
-  background: #1f883d;
+  box-shadow: 3px 3px 0 var(--ink);
   color: #fff;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+}
+
+button[type='submit']:hover {
+  background: var(--accent-dark);
+}
+
+button[type='submit']:active {
+  box-shadow: 1px 1px 0 var(--ink);
+  transform: translate(2px, 2px);
 }
 
 button:disabled {
@@ -119,30 +327,26 @@ button:disabled {
   cursor: default;
 }
 
-.form__error {
+.form p {
   margin: 0;
-  color: #d1242f;
   font-size: 14px;
 }
 
-.panel {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 24px;
-  background: #fff;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
+.form__error {
+  margin: 0;
+  padding: 8px 12px;
+  background: #fde8e4;
+  border-left: 4px solid var(--error);
+  color: var(--error);
+  font-size: 14px;
 }
 
-.panel h2 {
-  margin-top: 0;
-}
-
+/* Управление категориями */
 .category-form {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .category-form input {
@@ -154,7 +358,7 @@ button:disabled {
 }
 
 .category-list {
-  margin: 16px 0 0;
+  margin: 20px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -164,45 +368,55 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 0;
-  border-top: 1px solid #d0d7de;
+  padding: 12px 4px;
+  border-top: 1px dashed var(--line);
+}
+
+.category-list strong {
+  font-weight: 600;
 }
 
 .category-list p {
   margin: 2px 0 0;
-  color: #59636e;
+  color: var(--ink-soft);
   font-size: 14px;
 }
 
 .category-list__actions {
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 
 .icon-button {
   display: inline-flex;
-  padding: 6px;
-  border: 1px solid #d0d7de;
+  padding: 7px;
+  background: var(--sheet);
+  border: 2px solid var(--ink);
   border-radius: 6px;
-  background: #f6f8fa;
-  color: inherit;
+  color: var(--ink);
   cursor: pointer;
 }
 
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0;
-  list-style: none;
+.icon-button:hover {
+  background: var(--sticker-1);
 }
 
-.tags li {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  background: #ddf4ff;
-  border-radius: 999px;
-  font-size: 14px;
+.icon-button[aria-label^='Удалить']:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .header {
+    padding: 12px 16px;
+  }
+
+  .content {
+    padding: 28px 16px 48px;
+  }
+
+  .panel,
+  .form {
+    padding: 28px 18px 20px;
+  }
 }

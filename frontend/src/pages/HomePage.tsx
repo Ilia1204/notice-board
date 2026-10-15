@@ -1,4 +1,4 @@
-import { Tag } from 'lucide-react';
+import { Pin } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { categoriesApi } from '../api/categories';
 import type { Category } from '../api/categories';
@@ -16,17 +16,28 @@ export function HomePage() {
 
   return (
     <main className="content">
-      <section className="panel">
-        <h2>Категории объявлений</h2>
+      <section className="hero">
+        <p className="hero__kicker">Объявления от соседей</p>
+        <h2 className="hero__title">
+          Продают, ищут и&nbsp;предлагают&nbsp;— <span>рядом с&nbsp;вами</span>
+        </h2>
+      </section>
+
+      <section>
+        <h2 className="section-title">Категории объявлений</h2>
         {error && <p className="form__error">{error}</p>}
-        <ul className="tags">
+        <ul className="stickers">
           {categories.map((category) => (
-            <li key={category.id} title={category.description ?? undefined}>
-              <Tag size={14} aria-hidden /> {category.name}
+            <li key={category.id} className="sticker">
+              <Pin size={16} className="sticker__pin" aria-hidden />
+              <strong>{category.name}</strong>
+              {category.description && <span>{category.description}</span>}
             </li>
           ))}
         </ul>
-        <p>Объявления появятся здесь после реализации задачи Т3.</p>
+        <p className="note">
+          Скоро здесь появятся объявления — следите за доской.
+        </p>
       </section>
     </main>
   );
