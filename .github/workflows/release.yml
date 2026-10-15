@@ -1,0 +1,49 @@
+name: release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --prefix backend && npm ci --prefix frontend
+      - name: Тесты
+        run: |
+          npm --prefix backend run test:cov
+          npm --prefix backend run test:e2e
+          npm --prefix frontend run test:cov
+      - name: Сборка
+        run: npm --prefix backend run build && npm --prefix frontend run build
+      - name: Метрики этапа
+        run: npm run metrics
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Архивы сборки
+        run: |
+          (cd backend && zip -r "../backend-${GITHUB_REF_NAME}.zip" dist package.json package-lock.json)
+          (cd frontend/dist && zip -r "../../frontend-${GITHUB_REF_NAME}.zip" .)
+      - name: GitHub Release
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            "backend-${GITHUB_REF_NAME}.zip" \
+            "frontend-${GITHUB_REF_NAME}.zip" \
+            metrics/metrics.md \
+            metrics/metrics.json
+        env:
+          GH_TOKEN: ${{ github.token }}
