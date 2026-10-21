@@ -70,7 +70,7 @@ npm --prefix frontend install && npm --prefix frontend run dev        # http://l
 
 Отчёты о тестировании:
 
-- **в CI** — вкладка *Checks* у Pull Request (отчёты «Тесты (backend)», «Тесты (frontend)», «Тесты (e2e)»), сводка на странице запуска (покрытие и итоги e2e), артефакты `test-reports-*` (JUnit, HTML-покрытие) и `playwright-report` (HTML-отчёт со скриншотами, видео и трассировкой упавших тестов);
+- **в CI** — сводка на странице запуска в Actions (покрытие, итоги e2e и отчёты «Тесты (backend)», «Тесты (frontend)», «Тесты (e2e)» со списком всех тестов в *Expand for details*), артефакты `test-reports-*` (JUnit, HTML-покрытие) и `playwright-report` (HTML-отчёт со скриншотами, видео и трассировкой упавших тестов);
 - **локально** — `frontend/coverage/index.html`, `backend/coverage/lcov-report/index.html`, `npm --prefix e2e run report` (HTML-отчёт Playwright).
 
 ## Правила работы с кодом
