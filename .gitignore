@@ -147,3 +147,5 @@ dist/
 reports/
 metrics/
 .DS_Store
+playwright-report/
+test-results/
