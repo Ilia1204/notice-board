@@ -4,7 +4,7 @@ export default {
     'scope-enum': [
       2,
       'always',
-      ['backend', 'frontend', 'ci', 'deps', 'docs', 'release', 'repo'],
+      ['backend', 'frontend', 'e2e', 'ci', 'deps', 'docs', 'release', 'repo'],
     ],
     'subject-case': [0],
   },

@@ -18,6 +18,7 @@ notice-board/
 │       ├── components/ # переиспользуемые компоненты
 │       ├── pages/      # страницы приложения
 │       └── socket/     # WebSocket-клиент чата
+├── e2e/                # тесты от лица пользователя (Playwright)
 ├── .github/workflows/  # CI/CD-пайплайны
 ├── scripts/            # сбор метрик проекта
 ├── docker-compose.yml  # PostgreSQL для локальной разработки
@@ -56,6 +57,22 @@ npm --prefix frontend install && npm --prefix frontend run dev        # http://l
 | PATCH | `/categories/:id` | модератор | изменение категории |
 | DELETE | `/categories/:id` | модератор | удаление категории |
 
+## Тестирование
+
+| Вид | Где | Инструмент | Запуск |
+|---|---|---|---|
+| Модульные (сервисы, контроллеры, guard'ы) | `backend/src/**/*.spec.ts` | Jest | `npm --prefix backend run test:cov` |
+| Интеграционные (HTTP-запросы к API) | `backend/test/*.e2e-spec.ts` | Jest + Supertest | `npm --prefix backend run test:e2e` |
+| Модульные (страницы и компоненты) | `frontend/src/**/*.test.ts(x)` | Vitest + Testing Library | `npm --prefix frontend run test:cov` |
+| От лица пользователя (браузер) | `e2e/tests/*.spec.ts` | Playwright | `npm run test:e2e` |
+
+Тесты от лица пользователя открывают приложение в Chromium и проходят сценарии задач (регистрация, вход, управление категориями) на настоящих backend и базе данных. Перед запуском нужны поднятая база (`docker compose up -d`, `db:deploy`, `db:seed`) и один раз — браузер: `npx --prefix e2e playwright install chromium`. Backend и frontend Playwright запускает сам (или использует уже запущенные).
+
+Отчёты о тестировании:
+
+- **в CI** — вкладка *Checks* у Pull Request (отчёты «Тесты (backend)», «Тесты (frontend)», «Тесты (e2e)»), сводка на странице запуска (покрытие и итоги e2e), артефакты `test-reports-*` (JUnit, HTML-покрытие) и `playwright-report` (HTML-отчёт со скриншотами, видео и трассировкой упавших тестов);
+- **локально** — `frontend/coverage/index.html`, `backend/coverage/lcov-report/index.html`, `npm --prefix e2e run report` (HTML-отчёт Playwright).
+
 ## Правила работы с кодом
 
 ### Коммиты
@@ -67,7 +84,7 @@ npm --prefix frontend install && npm --prefix frontend run dev        # http://l
 ```
 
 - **Типы:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `build`, `ci`, `chore`, `perf`, `revert`.
-- **Области:** `backend`, `frontend`, `ci`, `deps`, `docs`, `release`, `repo`.
+- **Области:** `backend`, `frontend`, `e2e`, `ci`, `deps`, `docs`, `release`, `repo`.
 - Примеры: `feat(backend): add JWT auth guard`, `fix(frontend): validate empty category name`.
 
 Сообщения проверяет хук `commit-msg` (husky + commitlint) локально, а в CI их повторно проверяет workflow `commitlint`.
@@ -101,7 +118,7 @@ git push origin v0.1.0
 
 | Workflow | Когда запускается | Что делает |
 |---|---|---|
-| `CI` | push в `main`, Pull Request в `main` | `lint` — ESLint и Prettier; `test` — модульные и интеграционные тесты, отчёты JUnit и покрытие; `build` — сборка и артефакты `backend-dist`, `frontend-dist` (только после успешных `lint` и `test`); `metrics` — сбор метрик |
+| `CI` | push в `main`, Pull Request в `main` | `lint` — ESLint и Prettier; `test` — модульные и интеграционные тесты, отчёты JUnit и покрытие; `e2e` — тесты от лица пользователя в браузере на PostgreSQL, HTML-отчёт Playwright; `build` — сборка и артефакты `backend-dist`, `frontend-dist` (только после успешных `lint`, `test` и `e2e`); `metrics` — сбор метрик |
 | `commitlint` | Pull Request в `main` | проверка сообщений всех коммитов ветки |
 | `release` | push тега `v*.*.*` | тесты, сборка, метрики, создание GitHub Release |
 | `pages` | push в `main` с изменениями `frontend/` | сборка клиента и публикация на GitHub Pages: https://ilia1204.github.io/notice-board/ |
