@@ -55,7 +55,8 @@ npm --prefix frontend install && npm --prefix frontend run dev        # http://l
 | GET | `/categories` | все | список категорий |
 | POST | `/categories` | модератор | создание категории |
 | PATCH | `/categories/:id` | модератор | изменение категории |
-| DELETE | `/categories/:id` | модератор | удаление категории |
+| DELETE | `/categories/:id` | модератор | удаление категории (409, если в ней есть объявления) |
+| POST | `/ads` | авторизованные | публикация объявления (без цены — «договорная») |
 
 ## Тестирование
 
@@ -66,7 +67,7 @@ npm --prefix frontend install && npm --prefix frontend run dev        # http://l
 | Модульные (страницы и компоненты) | `frontend/src/**/*.test.ts(x)` | Vitest + Testing Library | `npm --prefix frontend run test:cov` |
 | От лица пользователя (браузер) | `e2e/tests/*.spec.ts` | Playwright | `npm run test:e2e` |
 
-Тесты от лица пользователя открывают приложение в Chromium и проходят сценарии задач (регистрация, вход, управление категориями) на настоящих backend и базе данных. Перед запуском нужны поднятая база (`docker compose up -d`, `db:deploy`, `db:seed`) и один раз — браузер: `npx --prefix e2e playwright install chromium`. Backend и frontend Playwright запускает сам (или использует уже запущенные).
+Тесты от лица пользователя открывают приложение в Chromium и проходят сценарии задач (регистрация, вход, управление категориями, публикация объявления) на настоящих backend и базе данных. Перед запуском нужны поднятая база (`docker compose up -d`, `db:deploy`, `db:seed`) и один раз — браузер: `npx --prefix e2e playwright install chromium`. Backend и frontend Playwright запускает сам (или использует уже запущенные).
 
 Отчёты о тестировании:
 
