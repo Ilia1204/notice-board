@@ -16,7 +16,7 @@ describe('AdsController', () => {
 
   it('публикует объявление от текущего пользователя', async () => {
     const dto = { title: 'Велосипед', description: 'Горный', categoryId: 1 };
-    await controller.create({ sub: 5, email: 'a@b.c', role: 'USER' }, dto);
-    expect(service.create).toHaveBeenCalledWith(5, dto);
+    await controller.create({ sub: 5, email: 'a@b.c', role: 'USER' }, dto, []);
+    expect(service.create).toHaveBeenCalledWith(5, dto, []);
   });
 });

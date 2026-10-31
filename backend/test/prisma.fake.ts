@@ -10,7 +10,7 @@ type CategoryData = Partial<Pick<Category, 'name' | 'description'>>;
 type AdData = Pick<
   Ad,
   'title' | 'description' | 'price' | 'categoryId' | 'authorId'
->;
+> & { images: { create: { filename: string; position: number }[] } };
 
 // Простая замена PrismaService в памяти для интеграционных тестов
 export function createPrismaFake() {
@@ -97,21 +97,27 @@ export function createPrismaFake() {
       // Как и в базе, вместе с объявлением отдаём категорию и автора
       create: ({ data }: { data: AdData }) =>
         Promise.resolve().then(() => {
-          const category = categories.find((c) => c.id === data.categoryId);
-          const author = users.find((u) => u.id === data.authorId);
+          const { images, ...fields } = data;
+          const category = categories.find((c) => c.id === fields.categoryId);
+          const author = users.find((u) => u.id === fields.authorId);
           if (!category) throw knownError('P2003');
           const now = new Date();
           const ad: Ad = {
             id: ads.length + 1,
+            status: 'PENDING',
             createdAt: now,
             updatedAt: now,
-            ...data,
+            ...fields,
           };
           ads.push(ad);
           return {
             ...ad,
             category: { id: category.id, name: category.name },
             author: { id: ad.authorId, name: author?.name ?? '' },
+            images: images.create.map((image, i) => ({
+              id: i + 1,
+              filename: image.filename,
+            })),
           };
         }),
     },

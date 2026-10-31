@@ -149,3 +149,6 @@ metrics/
 .DS_Store
 playwright-report/
 test-results/
+
+# Фото объявлений, загруженные локально
+backend/uploads/

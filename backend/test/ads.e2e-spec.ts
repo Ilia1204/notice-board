@@ -78,10 +78,52 @@ describe('Ads (e2e)', () => {
       id: 1,
       title: 'Велосипед',
       price: 15000,
+      status: 'PENDING',
       category: { id: 1, name: 'Транспорт' },
       author: { id: 2, name: 'Иван' },
     });
     expect(res.body).not.toHaveProperty('author.email');
+  });
+
+  it('принимает форму с фото', async () => {
+    const res = await server()
+      .post('/ads')
+      .set('Authorization', `Bearer ${userToken}`)
+      .field('title', 'Диван')
+      .field('description', 'Раскладной, серый, без пятен')
+      .field('categoryId', '1')
+      .attach('images', Buffer.from('png'), {
+        filename: 'sofa.png',
+        contentType: 'image/png',
+      })
+      .attach('images', Buffer.from('jpg'), {
+        filename: 'sofa-2.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(201);
+    const body = res.body as { price: null; images: { filename: string }[] };
+    expect(body.price).toBeNull();
+    expect(body.images).toEqual([
+      expect.objectContaining({ filename: expect.stringMatching(/\.png$/) }),
+      expect.objectContaining({ filename: expect.stringMatching(/\.jpg$/) }),
+    ]);
+  });
+
+  it('не принимает файлы, которые не являются фото', async () => {
+    const res = await server()
+      .post('/ads')
+      .set('Authorization', `Bearer ${userToken}`)
+      .field('title', 'Диван')
+      .field('description', 'Раскладной, серый, без пятен')
+      .field('categoryId', '1')
+      .attach('images', Buffer.from('%PDF'), {
+        filename: 'sofa.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+    expect(res.body).toMatchObject({
+      message: 'Фото должны быть в формате JPG, PNG или WEBP',
+    });
   });
 
   it('проверяет поля объявления', async () => {
