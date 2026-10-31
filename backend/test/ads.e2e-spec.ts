@@ -103,9 +103,9 @@ describe('Ads (e2e)', () => {
       .expect(201);
     const body = res.body as { price: null; images: { filename: string }[] };
     expect(body.price).toBeNull();
-    expect(body.images).toEqual([
-      expect.objectContaining({ filename: expect.stringMatching(/\.png$/) }),
-      expect.objectContaining({ filename: expect.stringMatching(/\.jpg$/) }),
+    expect(body.images.map((i) => i.filename.split('.').pop())).toEqual([
+      'png',
+      'jpg',
     ]);
   });
 
