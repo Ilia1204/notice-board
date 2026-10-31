@@ -1,4 +1,4 @@
-import { Prisma, type Category, type User } from '@prisma/client';
+import { Prisma, type Ad, type Category, type User } from '@prisma/client';
 
 const knownError = (code: string) =>
   new Prisma.PrismaClientKnownRequestError(code, {
@@ -7,11 +7,16 @@ const knownError = (code: string) =>
   });
 
 type CategoryData = Partial<Pick<Category, 'name' | 'description'>>;
+type AdData = Pick<
+  Ad,
+  'title' | 'description' | 'price' | 'categoryId' | 'authorId'
+>;
 
 // Простая замена PrismaService в памяти для интеграционных тестов
 export function createPrismaFake() {
   const users: User[] = [];
   const categories: Category[] = [];
+  const ads: Ad[] = [];
   let nextCategoryId = 1;
 
   const findCategory = (id: number) => {
@@ -28,6 +33,7 @@ export function createPrismaFake() {
   return {
     users,
     categories,
+    ads,
     user: {
       findUnique: ({ where }: { where: { id?: number; email?: string } }) =>
         Promise.resolve(
@@ -80,8 +86,33 @@ export function createPrismaFake() {
       delete: ({ where }: { where: { id: number } }) =>
         Promise.resolve().then(() => {
           const category = findCategory(where.id);
+          if (ads.some((ad) => ad.categoryId === where.id)) {
+            throw knownError('P2003');
+          }
           categories.splice(categories.indexOf(category), 1);
           return category;
+        }),
+    },
+    ad: {
+      // Как и в базе, вместе с объявлением отдаём категорию и автора
+      create: ({ data }: { data: AdData }) =>
+        Promise.resolve().then(() => {
+          const category = categories.find((c) => c.id === data.categoryId);
+          const author = users.find((u) => u.id === data.authorId);
+          if (!category) throw knownError('P2003');
+          const now = new Date();
+          const ad: Ad = {
+            id: ads.length + 1,
+            createdAt: now,
+            updatedAt: now,
+            ...data,
+          };
+          ads.push(ad);
+          return {
+            ...ad,
+            category: { id: category.id, name: category.name },
+            author: { id: ad.authorId, name: author?.name ?? '' },
+          };
         }),
     },
     $disconnect: () => Promise.resolve(),

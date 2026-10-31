@@ -77,6 +77,13 @@ describe('CategoriesService', () => {
     expect(prisma.category.delete).toHaveBeenCalledWith({ where: { id: 1 } });
   });
 
+  it('не удаляет категорию, в которой есть объявления', async () => {
+    prisma.category.delete.mockRejectedValue(prismaError('P2003'));
+    await expect(service.remove(1)).rejects.toThrow(
+      'В категории есть объявления',
+    );
+  });
+
   it('пробрасывает прочие ошибки базы данных', async () => {
     prisma.category.delete.mockRejectedValue(new Error('connection lost'));
     await expect(service.remove(1)).rejects.toThrow('connection lost');

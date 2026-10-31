@@ -52,6 +52,10 @@ export class CategoriesService {
         if (error.code === 'P2002') {
           throw new ConflictException('Категория с таким названием уже есть');
         }
+        // Связанные объявления не дают удалить категорию (onDelete: Restrict)
+        if (error.code === 'P2003') {
+          throw new ConflictException('В категории есть объявления');
+        }
         if (error.code === 'P2025') {
           throw new NotFoundException('Категория не найдена');
         }
