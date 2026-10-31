@@ -3,6 +3,7 @@ import {
   FolderCog,
   LogIn,
   LogOut,
+  SquarePlus,
   UserPlus,
 } from 'lucide-react';
 import { Link } from 'react-router';
@@ -20,6 +21,9 @@ export function Header() {
       <nav className="header__nav">
         {user ? (
           <>
+            <Link to="/ads/new">
+              <SquarePlus size={16} aria-hidden /> Подать объявление
+            </Link>
             {user.role === 'MODERATOR' && (
               <Link to="/categories">
                 <FolderCog size={16} aria-hidden /> Категории

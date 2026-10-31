@@ -265,6 +265,15 @@ h2 {
   margin: 24px auto 0;
 }
 
+.form--wide {
+  max-width: 560px;
+}
+
+textarea {
+  resize: vertical;
+  font: inherit;
+}
+
 .form h2 {
   margin: 0 0 4px;
   font-size: 24px;
@@ -285,6 +294,7 @@ button {
 }
 
 input,
+select,
 textarea {
   padding: 9px 12px;
   background: #fff;
@@ -294,6 +304,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   outline: 3px solid var(--sticker-1);
   outline-offset: 0;

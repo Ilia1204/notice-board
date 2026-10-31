@@ -5,6 +5,7 @@ import { RequireRole } from './components/RequireRole';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { NewAdPage } from './pages/NewAdPage';
 import { RegisterPage } from './pages/RegisterPage';
 
 // HashRouter: адреса вида /#/login работают и на GitHub Pages без настройки сервера
@@ -17,6 +18,14 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/ads/new"
+            element={
+              <RequireRole>
+                <NewAdPage />
+              </RequireRole>
+            }
+          />
           <Route
             path="/categories"
             element={
