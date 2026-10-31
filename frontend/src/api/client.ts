@@ -22,7 +22,9 @@ export async function apiRequest<T>(
   { method = 'GET', body, token }: RequestOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (body !== undefined && !(body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let response: Response;
@@ -30,7 +32,7 @@ export async function apiRequest<T>(
     response = await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: encodeBody(body),
     });
   } catch {
     throw new ApiError(0, 'Сервер недоступен. Попробуйте позже.');
@@ -42,6 +44,12 @@ export async function apiRequest<T>(
     throw new ApiError(response.status, errorMessage(data));
   }
   return data as T;
+}
+
+// FormData (форма с файлами) браузер кодирует сам, остальное отправляем как JSON
+function encodeBody(body: unknown): BodyInit | undefined {
+  if (body === undefined || body instanceof FormData) return body;
+  return JSON.stringify(body);
 }
 
 // NestJS возвращает message строкой или массивом ошибок валидации
