@@ -3,12 +3,23 @@ import { ConfigService } from '@nestjs/config';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ImageStorage, MAX_IMAGE_SIZE } from './image-storage.service';
+import {
+  ImageStorage,
+  imageExtension,
+  MAX_IMAGE_SIZE,
+} from './image-storage.service';
 
-const image = (mimetype = 'image/png', size = 100) => ({
-  mimetype,
+// Начало настоящих файлов каждого формата
+const HEADERS = {
+  jpg: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+  png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  webp: Buffer.from('RIFF\0\0\0\0WEBPVP8 ', 'latin1'),
+  pdf: Buffer.from('%PDF-1.7'),
+};
+
+const image = (type: keyof typeof HEADERS = 'png', size = 100) => ({
   size,
-  buffer: Buffer.from('fake image'),
+  buffer: HEADERS[type],
 });
 
 describe('ImageStorage', () => {
@@ -23,9 +34,7 @@ describe('ImageStorage', () => {
   afterEach(() => rm(dir, { recursive: true, force: true }));
 
   it('пропускает до 5 фото JPG, PNG и WEBP', () => {
-    const files = ['image/jpeg', 'image/png', 'image/webp'].map((t) =>
-      image(t),
-    );
+    const files = [image('jpg'), image('png'), image('webp')];
     expect(() => storage.validate(files)).not.toThrow();
   });
 
@@ -36,25 +45,31 @@ describe('ImageStorage', () => {
   });
 
   it('не принимает другие форматы', () => {
-    expect(() => storage.validate([image('application/pdf')])).toThrow(
-      BadRequestException,
-    );
+    expect(() => storage.validate([image('pdf')])).toThrow(BadRequestException);
+  });
+
+  it('определяет формат по содержимому файла, а не по его типу', () => {
+    expect(imageExtension(HEADERS.jpg)).toBe('jpg');
+    expect(imageExtension(HEADERS.png)).toBe('png');
+    expect(imageExtension(HEADERS.webp)).toBe('webp');
+    expect(imageExtension(HEADERS.pdf)).toBeNull();
+    expect(imageExtension(Buffer.from('fake image'))).toBeNull();
   });
 
   it('не принимает фото больше 5 МБ', () => {
-    expect(() =>
-      storage.validate([image('image/jpeg', MAX_IMAGE_SIZE + 1)]),
-    ).toThrow('Каждое фото должно быть не больше 5 МБ');
+    expect(() => storage.validate([image('jpg', MAX_IMAGE_SIZE + 1)])).toThrow(
+      'Каждое фото должно быть не больше 5 МБ',
+    );
   });
 
   it('сохраняет фото под случайными именами и удаляет их', async () => {
-    const names = await storage.save([image('image/jpeg'), image('image/png')]);
+    const names = await storage.save([image('jpg'), image('png')]);
 
     expect(names).toEqual([
       expect.stringMatching(/^[\w-]+\.jpg$/),
       expect.stringMatching(/^[\w-]+\.png$/),
     ]);
-    expect(await readFile(join(dir, names[0]), 'utf8')).toBe('fake image');
+    expect(await readFile(join(dir, names[0]))).toEqual(HEADERS.jpg);
 
     await storage.remove(names);
     expect(await readdir(dir)).toEqual([]);
