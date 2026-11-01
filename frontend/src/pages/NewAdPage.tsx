@@ -108,6 +108,9 @@ export function NewAdPage() {
     <main className="content">
       <form className="form form--wide" onSubmit={handleSubmit}>
         <h2>Новое объявление</h2>
+        <p className="form__hint">
+          Заполните купон — объявление выйдет после проверки модератором.
+        </p>
         <label>
           Заголовок
           <input name="title" required minLength={3} maxLength={100} />
@@ -145,7 +148,8 @@ export function NewAdPage() {
             placeholder="Пусто — договорная"
           />
         </label>
-        <label>
+        {/* Своя кнопка вместо стандартной: у браузера она на английском */}
+        <label className="file-field">
           Фото (до {MAX_IMAGES} шт., JPG/PNG/WEBP, до 5 МБ)
           <input
             type="file"
@@ -153,6 +157,14 @@ export function NewAdPage() {
             multiple
             onChange={handleImages}
           />
+          <span className="file-field__row">
+            <span className="file-field__button">Выбрать фото</span>
+            <span>
+              {images.length > 0
+                ? `Выбрано: ${images.length}`
+                : 'Файлы не выбраны'}
+            </span>
+          </span>
         </label>
         {previews.length > 0 && (
           <ul className="previews">

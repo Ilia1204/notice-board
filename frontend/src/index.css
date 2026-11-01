@@ -1,22 +1,18 @@
-/* «Городская доска»: кремовая бумага, тёмно-синяя шапка, стикеры-ярлыки */
+/* «Газета объявлений»: газетная бумага, чёрная краска, красный второй цвет */
 :root {
-  --paper: #f3ead8;
-  --paper-dot: #e2d4b8;
-  --sheet: #fffdf8;
-  --ink: #1d2433;
-  --ink-soft: #5b6170;
-  --line: #d9cbb0;
-  --accent: #e4572e;
-  --accent-dark: #c2421c;
-  --error: #b42318;
-  --sticker-1: #ffe27a;
-  --sticker-2: #ffc2cf;
-  --sticker-3: #b5ead7;
-  --sticker-4: #b8dcff;
-  --font-display: 'Unbounded', 'Arial Black', sans-serif;
-  --font-body: 'Golos Text', system-ui, sans-serif;
+  --paper: #f2eee3;
+  --sheet: #faf8f2;
+  --ink: #1b1a17;
+  --ink-soft: #5c584f;
+  --rule: #c8c0ad;
+  --red: #c41e2a;
+  --red-dark: #9c1520;
+  --font-title: 'Old Standard TT', 'Times New Roman', serif;
+  --font-text: 'PT Serif', Georgia, serif;
+  --font-label: 'PT Sans Narrow', 'Arial Narrow', sans-serif;
 
-  font-family: var(--font-body);
+  font-family: var(--font-text);
+  font-size: 17px;
   line-height: 1.5;
   color: var(--ink);
   background-color: var(--paper);
@@ -26,252 +22,419 @@ body {
   margin: 0;
   min-height: 100vh;
   background-color: var(--paper);
-  background-image: radial-gradient(var(--paper-dot) 1px, transparent 1px);
-  background-size: 18px 18px;
 }
 
 a {
-  color: var(--accent-dark);
+  color: var(--red);
+  text-underline-offset: 3px;
 }
 
 h1,
 h2 {
-  font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  font-family: var(--font-title);
+  font-weight: 700;
 }
 
-/* Шапка */
-.header {
+/* Газетная шапка */
+.masthead {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 14px 24px 0;
+  text-align: center;
+}
+
+.masthead__meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   justify-content: space-between;
-  gap: 8px 20px;
-  padding: 14px 32px;
-  background: var(--ink);
-  color: var(--paper);
-  border-bottom: 4px solid var(--accent);
+  gap: 4px 16px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ink);
+  font-family: var(--font-label);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.header__brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.masthead__title {
   color: inherit;
   text-decoration: none;
 }
 
-.header__brand svg {
-  padding: 6px;
-  background: var(--accent);
-  border-radius: 8px;
-  color: #fff;
+.masthead__title h1 {
+  margin: 12px 0 10px;
+  font-size: clamp(38px, 8vw, 82px);
+  line-height: 1;
+  letter-spacing: -0.01em;
 }
 
-.header h1 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.header__nav {
+.masthead__nav {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 18px;
+  gap: 6px 20px;
+  padding: 8px 0;
+  border-top: 4px double var(--ink);
+  border-bottom: 1px solid var(--ink);
 }
 
-.header__nav a,
-.header__nav .button-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--paper);
-  font-weight: 500;
+.masthead__nav > * + * {
+  padding-left: 20px;
+  border-left: 1px solid var(--rule);
+}
+
+.masthead__nav a,
+.masthead__nav .button-link,
+.masthead__user {
+  font-family: var(--font-label);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
   text-decoration: none;
 }
 
-.header__nav a:hover,
-.header__nav .button-link:hover {
-  color: var(--sticker-1);
-}
-
-.header__user {
-  font-weight: 600;
+.masthead__nav a:hover,
+.masthead__nav .button-link:hover {
+  color: var(--red);
 }
 
 .badge {
-  margin-left: -10px;
-  padding: 2px 8px;
-  background: var(--sticker-1);
-  border-radius: 999px;
-  color: var(--ink);
+  margin-left: 8px;
+  padding: 1px 6px;
+  background: var(--red);
+  color: var(--sheet);
+  font-family: var(--font-label);
   font-size: 12px;
-  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 2px;
 }
 
 .button-link {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--accent-dark);
-  font: inherit;
+  color: var(--ink);
+  font-family: var(--font-label);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
 }
 
 /* Общая раскладка */
 .content {
-  max-width: 960px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 40px 24px 64px;
+  padding: 32px 24px 64px;
 }
 
-.hero {
-  margin-bottom: 40px;
+.kicker {
+  margin: 0 0 10px;
+  color: var(--red);
+  font-family: var(--font-label);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
-.hero__kicker {
-  margin: 0 0 8px;
-  color: var(--accent-dark);
-  font-size: 13px;
-  font-weight: 600;
+/* Передовица */
+.lead {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  column-gap: 40px;
+  align-items: end;
+  margin-bottom: 36px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.lead .kicker {
+  grid-column: 1 / -1;
+}
+
+.lead__title {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 50px);
+  line-height: 1.08;
+}
+
+.lead__text {
+  margin: 0;
+  padding-left: 24px;
+  border-left: 1px solid var(--rule);
+  font-style: italic;
+}
+
+.lead__text::first-letter {
+  float: left;
+  margin: 6px 8px 0 0;
+  color: var(--red);
+  font-family: var(--font-title);
+  font-size: 3.4em;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 0.8;
+}
+
+/* Рубрики в колонках, как в газете */
+.rubric-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 18px;
+  font-family: var(--font-label);
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.rubric-title::before,
+.rubric-title::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--ink);
+}
+
+.rubrics {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rubric;
+  columns: 3 220px;
+  column-gap: 40px;
+  column-rule: 1px solid var(--rule);
+}
+
+.rubrics li {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+  border-bottom: 1px dotted var(--ink-soft);
+  break-inside: avoid;
+  counter-increment: rubric;
+}
+
+.rubrics li::before {
+  content: 'Рубрика № ' counter(rubric, decimal-leading-zero);
+  color: var(--red);
+  font-family: var(--font-label);
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.hero__title {
-  max-width: 720px;
-  margin: 0;
-  font-size: clamp(26px, 5vw, 44px);
-  font-weight: 800;
-  line-height: 1.15;
+.rubrics strong {
+  font-family: var(--font-title);
+  font-size: 22px;
+  line-height: 1.2;
 }
 
-.hero__title span {
-  background: linear-gradient(transparent 62%, var(--sticker-1) 62%);
-}
-
-.section-title {
-  margin: 0 0 20px;
-  font-size: 20px;
+.rubrics span {
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-style: italic;
 }
 
 .note {
   margin-top: 32px;
   color: var(--ink-soft);
+  font-style: italic;
+  text-align: center;
 }
 
-/* Лист бумаги, приколотый скотчем */
-.panel,
+/* Формы — купон, который вырезают из газеты */
 .form {
-  position: relative;
-  padding: 32px 28px 28px;
-  background: var(--sheet);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  box-shadow: 0 10px 24px -14px rgb(29 36 51 / 45%);
-}
-
-.panel::before,
-.form::before {
-  content: '';
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  width: 96px;
-  height: 24px;
-  background: rgb(255 226 122 / 75%);
-  transform: translateX(-50%) rotate(-3deg);
-}
-
-.panel {
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-.panel h2 {
-  margin-top: 0;
-  font-size: 22px;
-}
-
-/* Стикеры категорий */
-.stickers {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 24px 20px;
-  margin: 0;
-  padding: 8px 0 0;
-  list-style: none;
-}
-
-.sticker {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-height: 72px;
-  padding: 22px 16px 16px;
-  background: var(--sticker-1);
-  box-shadow: 0 8px 14px -10px rgb(29 36 51 / 55%);
-  transform: rotate(-1.5deg);
-  transition: transform 0.15s ease;
-}
-
-.sticker:nth-child(4n + 2) {
-  background: var(--sticker-2);
-  transform: rotate(1.2deg);
-}
-
-.sticker:nth-child(4n + 3) {
-  background: var(--sticker-3);
-  transform: rotate(-0.6deg);
-}
-
-.sticker:nth-child(4n + 4) {
-  background: var(--sticker-4);
-  transform: rotate(1.8deg);
-}
-
-.sticker:hover {
-  transform: rotate(0) scale(1.03);
-}
-
-.sticker strong {
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.sticker span {
-  color: var(--ink-soft);
-  font-size: 13px;
-}
-
-.sticker__pin {
-  position: absolute;
-  top: -8px;
-  left: 50%;
-  color: var(--accent);
-  transform: translateX(-50%) rotate(20deg);
-}
-
-/* Формы */
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-width: 380px;
+  gap: 16px;
+  max-width: 420px;
   margin: 24px auto 0;
+  padding: 30px 30px 28px;
+  background: var(--sheet);
+  border: 2px dashed var(--ink);
+}
+
+.form::before {
+  content: '✂';
+  position: absolute;
+  top: -15px;
+  left: 28px;
+  padding: 0 6px;
+  background: var(--paper);
+  font-family: system-ui, sans-serif;
+  font-size: 22px;
+  line-height: 1;
 }
 
 .form--wide {
-  max-width: 560px;
+  max-width: 600px;
+}
+
+.form h2 {
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 4px double var(--ink);
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.form p {
+  margin: 0;
+  font-size: 15px;
+}
+
+.form__hint {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-label);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Поля — строки бланка, которые заполняют от руки */
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  padding: 6px 2px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  border-radius: 0;
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 textarea {
+  padding: 0 2px;
+  line-height: 28px;
+  background-image: repeating-linear-gradient(
+    transparent 0 27px,
+    var(--rule) 27px 28px
+  );
   resize: vertical;
-  font: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-bottom-color: var(--red);
+  box-shadow: 0 1px 0 var(--red);
+}
+
+button[type='submit'] {
+  padding: 12px 18px;
+  background: var(--ink);
+  border: 0;
+  border-radius: 0;
+  color: var(--sheet);
+  font-family: var(--font-label);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+button[type='submit']:hover {
+  background: var(--red);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.form__error {
+  margin: 0;
+  padding: 4px 0 4px 12px;
+  border-left: 3px solid var(--red);
+  color: var(--red-dark);
+  font-size: 15px;
+  font-style: italic;
+}
+
+/* Выбор фото */
+.file-field {
+  position: relative;
+  cursor: pointer;
+}
+
+.file-field input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.file-field__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink-soft);
+  font-family: var(--font-text);
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.file-field__button {
+  padding: 6px 12px;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-family: var(--font-label);
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.file-field:hover .file-field__button {
+  background: var(--ink);
+  color: var(--sheet);
+}
+
+.file-field input:focus-visible + .file-field__row .file-field__button {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
 }
 
 .previews {
@@ -284,108 +447,42 @@ textarea {
 }
 
 .previews img {
+  display: block;
   width: 88px;
   height: 88px;
   object-fit: cover;
-  border: 2px solid var(--ink);
-  border-radius: 6px;
+  border: 1px solid var(--ink);
 }
 
 .ad-cover {
   width: 100%;
   max-height: 280px;
   object-fit: cover;
-  border-radius: 4px;
-}
-
-.form h2 {
-  margin: 0 0 4px;
-  font-size: 24px;
-}
-
-.form label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-input,
-textarea,
-button {
-  font: inherit;
-}
-
-input,
-select,
-textarea {
-  padding: 9px 12px;
-  background: #fff;
-  border: 2px solid var(--ink);
-  border-radius: 6px;
-  color: var(--ink);
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  outline: 3px solid var(--sticker-1);
-  outline-offset: 0;
-}
-
-button[type='submit'] {
-  padding: 10px 16px;
-  background: var(--accent);
-  border: 2px solid var(--ink);
-  border-radius: 6px;
-  box-shadow: 3px 3px 0 var(--ink);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    transform 0.1s ease,
-    box-shadow 0.1s ease;
-}
-
-button[type='submit']:hover {
-  background: var(--accent-dark);
-}
-
-button[type='submit']:active {
-  box-shadow: 1px 1px 0 var(--ink);
-  transform: translate(2px, 2px);
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.form p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.form__error {
-  margin: 0;
-  padding: 8px 12px;
-  background: #fde8e4;
-  border-left: 4px solid var(--error);
-  color: var(--error);
-  font-size: 14px;
+  border: 1px solid var(--ink);
 }
 
 /* Управление категориями */
+.panel {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.panel h2 {
+  margin: 0 0 20px;
+  padding-bottom: 8px;
+  border-bottom: 4px double var(--ink);
+  font-size: 32px;
+}
+
 .category-form {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 12px 16px;
 }
 
 .category-form input {
-  flex: 1 1 160px;
+  flex: 1 1 180px;
 }
 
 .category-form .form__error {
@@ -393,7 +490,7 @@ button:disabled {
 }
 
 .category-list {
-  margin: 20px 0 0;
+  margin: 24px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -403,18 +500,20 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 4px;
-  border-top: 1px dashed var(--line);
+  padding: 12px 0;
+  border-top: 1px dotted var(--ink-soft);
 }
 
 .category-list strong {
-  font-weight: 600;
+  font-family: var(--font-title);
+  font-size: 20px;
 }
 
 .category-list p {
   margin: 2px 0 0;
   color: var(--ink-soft);
-  font-size: 14px;
+  font-size: 15px;
+  font-style: italic;
 }
 
 .category-list__actions {
@@ -425,33 +524,51 @@ button:disabled {
 .icon-button {
   display: inline-flex;
   padding: 7px;
-  background: var(--sheet);
-  border: 2px solid var(--ink);
-  border-radius: 6px;
+  background: transparent;
+  border: 1px solid var(--ink);
   color: var(--ink);
   cursor: pointer;
 }
 
 .icon-button:hover {
-  background: var(--sticker-1);
+  background: var(--ink);
+  color: var(--sheet);
 }
 
 .icon-button[aria-label^='Удалить']:hover {
-  background: var(--accent);
-  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
 }
 
-@media (max-width: 600px) {
-  .header {
-    padding: 12px 16px;
+@media (max-width: 700px) {
+  .masthead {
+    padding: 10px 16px 0;
+  }
+
+  .masthead__meta {
+    justify-content: center;
+  }
+
+  .masthead__nav > * + * {
+    padding-left: 0;
+    border-left: 0;
   }
 
   .content {
-    padding: 28px 16px 48px;
+    padding: 24px 16px 48px;
   }
 
-  .panel,
+  .lead {
+    grid-template-columns: 1fr;
+    row-gap: 16px;
+  }
+
+  .lead__text {
+    padding-left: 0;
+    border-left: 0;
+  }
+
   .form {
-    padding: 28px 18px 20px;
+    padding: 26px 18px 20px;
   }
 }

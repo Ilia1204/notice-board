@@ -1,4 +1,3 @@
-import { Pin } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { categoriesApi } from '../api/categories';
 import type { Category } from '../api/categories';
@@ -16,27 +15,30 @@ export function HomePage() {
 
   return (
     <main className="content">
-      <section className="hero">
-        <p className="hero__kicker">Объявления от соседей</p>
-        <h2 className="hero__title">
-          Продают, ищут и&nbsp;предлагают&nbsp;— <span>рядом с&nbsp;вами</span>
+      <section className="lead">
+        <p className="kicker">Объявления от соседей</p>
+        <h2 className="lead__title">
+          Продают, ищут и&nbsp;предлагают&nbsp;— рядом с&nbsp;вами
         </h2>
+        <p className="lead__text">
+          Отдайте ненужное, найдите нужное. Подать объявление&nbsp;— бесплатно,
+          после проверки модератором его увидят все.
+        </p>
       </section>
 
       <section>
-        <h2 className="section-title">Категории объявлений</h2>
+        <h2 className="rubric-title">Рубрики</h2>
         {error && <p className="form__error">{error}</p>}
-        <ul className="stickers">
+        <ol className="rubrics">
           {categories.map((category) => (
-            <li key={category.id} className="sticker">
-              <Pin size={16} className="sticker__pin" aria-hidden />
+            <li key={category.id}>
               <strong>{category.name}</strong>
               {category.description && <span>{category.description}</span>}
             </li>
           ))}
-        </ul>
+        </ol>
         <p className="note">
-          Скоро здесь появятся объявления — следите за доской.
+          Скоро здесь появятся объявления — следите за выпусками.
         </p>
       </section>
     </main>
