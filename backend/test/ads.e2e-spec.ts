@@ -7,6 +7,10 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createPrismaFake } from './prisma.fake';
 
+// Начало настоящих PNG и JPG — сервер проверяет формат по содержимому
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+
 describe('Ads (e2e)', () => {
   let app: INestApplication<App>;
   let moderatorToken: string;
@@ -92,11 +96,11 @@ describe('Ads (e2e)', () => {
       .field('title', 'Диван')
       .field('description', 'Раскладной, серый, без пятен')
       .field('categoryId', '1')
-      .attach('images', Buffer.from('png'), {
+      .attach('images', PNG, {
         filename: 'sofa.png',
         contentType: 'image/png',
       })
-      .attach('images', Buffer.from('jpg'), {
+      .attach('images', JPEG, {
         filename: 'sofa-2.jpg',
         contentType: 'image/jpeg',
       })
@@ -119,6 +123,23 @@ describe('Ads (e2e)', () => {
       .attach('images', Buffer.from('%PDF'), {
         filename: 'sofa.pdf',
         contentType: 'application/pdf',
+      })
+      .expect(400);
+    expect(res.body).toMatchObject({
+      message: 'Фото должны быть в формате JPG, PNG или WEBP',
+    });
+  });
+
+  it('не принимает файл, выданный за фото', async () => {
+    const res = await server()
+      .post('/ads')
+      .set('Authorization', `Bearer ${userToken}`)
+      .field('title', 'Диван')
+      .field('description', 'Раскладной, серый, без пятен')
+      .field('categoryId', '1')
+      .attach('images', Buffer.from('<script>alert(1)</script>'), {
+        filename: 'sofa.png',
+        contentType: 'image/png',
       })
       .expect(400);
     expect(res.body).toMatchObject({
