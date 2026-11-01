@@ -34,21 +34,42 @@ model Category {
   @@map("categories")
 }
 
+// Новое объявление ждёт проверки модератором (Т6)
+enum AdStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
 model Ad {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   title       String
   description String
   // Цена в рублях; null — «договорная»
   price       Int?
   // Категорию с объявлениями удалить нельзя
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  categoryId  Int      @map("category_id")
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId    Int      @map("author_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  categoryId  Int       @map("category_id")
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    Int       @map("author_id")
+  status      AdStatus  @default(PENDING)
+  images      AdImage[]
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@index([categoryId])
   @@index([authorId])
   @@map("ads")
+}
+
+model AdImage {
+  id       Int    @id @default(autoincrement())
+  // Имя файла в папке загрузок (UPLOAD_DIR)
+  filename String @unique
+  position Int
+  ad       Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
+  adId     Int    @map("ad_id")
+
+  @@index([adId])
+  @@map("ad_images")
 }

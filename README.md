@@ -43,6 +43,8 @@ npm --prefix frontend install && npm --prefix frontend run dev        # http://l
 
 Если порт 5432 занят локальным PostgreSQL, укажите в `.env` другой порт: `POSTGRES_PORT=5433` и тот же порт в `DATABASE_URL`.
 
+Фото объявлений сохраняются в папку из `UPLOAD_DIR` (по умолчанию `backend/uploads`, в git не попадает).
+
 Учётная запись модератора после `db:seed`: `moderator@board.local` / `moderator123` (меняется переменными `MODERATOR_EMAIL`, `MODERATOR_PASSWORD`).
 
 ## API
@@ -56,7 +58,8 @@ npm --prefix frontend install && npm --prefix frontend run dev        # http://l
 | POST | `/categories` | модератор | создание категории |
 | PATCH | `/categories/:id` | модератор | изменение категории |
 | DELETE | `/categories/:id` | модератор | удаление категории (409, если в ней есть объявления) |
-| POST | `/ads` | авторизованные | публикация объявления (без цены — «договорная») |
+| POST | `/ads` | авторизованные | подача объявления: форма `multipart/form-data`, до 5 фото в поле `images` (JPG/PNG/WEBP, до 5 МБ); без цены — «договорная»; новое объявление получает статус «на модерации» |
+| GET | `/uploads/:file` | все | фото объявления |
 
 ## Тестирование
 
