@@ -1,4 +1,4 @@
-import { Pin } from 'lucide-react';
+import { Bike, Smartphone, Sofa } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { categoriesApi } from '../api/categories';
 import type { Category } from '../api/categories';
@@ -17,26 +17,45 @@ export function HomePage() {
   return (
     <main className="content">
       <section className="hero">
-        <p className="hero__kicker">Объявления от соседей</p>
-        <h2 className="hero__title">
-          Продают, ищут и&nbsp;предлагают&nbsp;— <span>рядом с&nbsp;вами</span>
-        </h2>
+        <div>
+          <h2 className="hero__title">
+            Вещам&nbsp;— <em>вторая жизнь</em>, соседям&nbsp;— выгода
+          </h2>
+          <p className="hero__text">
+            Доска объявлений по всей стране. Отдайте ненужное и&nbsp;найдите
+            нужное рядом с&nbsp;домом.
+          </p>
+        </div>
+        {/* Декоративный коллаж вместо фото, пока объявлений нет */}
+        <div className="collage" aria-hidden>
+          <div className="collage__card collage__card--green">
+            <Bike size={64} strokeWidth={1.5} />
+          </div>
+          <div className="collage__card collage__card--peach">
+            <Sofa size={56} strokeWidth={1.5} />
+          </div>
+          <div className="collage__card collage__card--sand">
+            <Smartphone size={44} strokeWidth={1.5} />
+          </div>
+        </div>
       </section>
 
       <section>
-        <h2 className="section-title">Категории объявлений</h2>
+        <h2 className="section-title">Рубрики</h2>
         {error && <p className="form__error">{error}</p>}
-        <ul className="stickers">
+        <ul className="chips">
           {categories.map((category) => (
-            <li key={category.id} className="sticker">
-              <Pin size={16} className="sticker__pin" aria-hidden />
-              <strong>{category.name}</strong>
-              {category.description && <span>{category.description}</span>}
+            <li
+              key={category.id}
+              className="chip"
+              title={category.description ?? undefined}
+            >
+              {category.name}
             </li>
           ))}
         </ul>
-        <p className="note">
-          Скоро здесь появятся объявления — следите за доской.
+        <p className="empty">
+          Скоро здесь появятся объявления — загляните чуть позже.
         </p>
       </section>
     </main>
