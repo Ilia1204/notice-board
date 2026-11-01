@@ -55,7 +55,8 @@ describe('публикация объявления', () => {
   beforeEach(() => {
     localStorage.clear();
     // В jsdom нет превью файлов — подменяем
-    URL.createObjectURL = vi.fn(() => 'blob:preview');
+    let n = 0;
+    URL.createObjectURL = vi.fn(() => `blob:preview-${++n}`);
     URL.revokeObjectURL = vi.fn();
   });
   afterEach(() => vi.unstubAllGlobals());
@@ -120,15 +121,35 @@ describe('публикация объявления', () => {
     expect(sentForm(fetchMock)).toBeUndefined();
   });
 
-  it('не отправляет больше 5 фото', async () => {
-    openNewAd();
+  it('не отправляет больше 10 фото', async () => {
+    const fetchMock = openNewAd();
     await fillAd(
       '100',
-      Array.from({ length: 6 }, () => photo()),
+      Array.from({ length: 11 }, () => photo()),
     );
     expect(
-      screen.getByText('Можно прикрепить не больше 5 фото'),
+      screen.getByText('Можно прикрепить не больше 10 фото'),
     ).toBeInTheDocument();
+    expect(sentForm(fetchMock)).toBeUndefined();
+  });
+
+  it('добавляет фото к уже выбранным и убирает лишнее', async () => {
+    const fetchMock = openNewAd({ 'POST /ads': [201, bike] });
+    await screen.findByRole('option', { name: 'Транспорт' });
+    const input = screen.getByLabelText(/Фото/);
+    fireEvent.change(input, { target: { files: [photo()] } });
+    fireEvent.change(input, {
+      target: { files: [photo('image/png', 'a.png'), photo()] },
+    });
+    expect(screen.getByText('Выбрано: 3 из 10')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Убрать фото 2' }));
+    expect(screen.getAllByRole('img', { name: /Фото \d/ })).toHaveLength(2);
+
+    await fillAd('100');
+    await screen.findByText('Готово!');
+    const sent = sentForm(fetchMock).getAll('images') as File[];
+    expect(sent.map((f) => f.name)).toEqual(['bike.jpg', 'bike.jpg']);
   });
 
   it('показывает ошибку сервера', async () => {
