@@ -141,6 +141,20 @@ describe('Ads (e2e)', () => {
     );
   });
 
+  it('не принимает заголовок и описание из одних пробелов', async () => {
+    const res = await server()
+      .post('/ads')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({ ...bike, title: '     ', description: '            ' })
+      .expect(400);
+    expect((res.body as { message: string[] }).message).toEqual(
+      expect.arrayContaining([
+        'Заголовок должен быть не короче 3 символов',
+        'Описание должно быть не короче 10 символов',
+      ]),
+    );
+  });
+
   it('отклоняет несуществующую категорию', () => {
     return server()
       .post('/ads')

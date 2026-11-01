@@ -53,6 +53,13 @@ describe('Auth (e2e)', () => {
       .expect(400);
   });
 
+  it('не регистрирует с именем из одних пробелов', () => {
+    return request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ ...user, email: 'spaces@mail.ru', name: '   ' })
+      .expect(400);
+  });
+
   it('входит и получает профиль по токену', async () => {
     const login = await request(app.getHttpServer())
       .post('/auth/login')

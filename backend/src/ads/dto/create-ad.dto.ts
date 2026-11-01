@@ -8,13 +8,16 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { Trim } from '../../common/trim.decorator';
 
 export class CreateAdDto {
+  @Trim()
   @IsString()
   @MinLength(3, { message: 'Заголовок должен быть не короче 3 символов' })
   @MaxLength(100, { message: 'Заголовок должен быть не длиннее 100 символов' })
   title!: string;
 
+  @Trim()
   @IsString()
   @MinLength(10, { message: 'Описание должно быть не короче 10 символов' })
   @MaxLength(2000, {
