@@ -18,11 +18,11 @@ export function HomePage() {
       <section className="lead">
         <p className="kicker">Объявления от соседей</p>
         <h2 className="lead__title">
-          Продают, ищут и&nbsp;предлагают&nbsp;— рядом с&nbsp;вами
+          Продают, ищут и&nbsp;предлагают&nbsp;— <mark>рядом с&nbsp;вами</mark>
         </h2>
         <p className="lead__text">
-          Отдайте ненужное, найдите нужное. Подать объявление&nbsp;— бесплатно,
-          после проверки модератором его увидят все.
+          Подать объявление&nbsp;— бесплатно. Модератор проверит его, и&nbsp;оно
+          появится в&nbsp;нужной рубрике для всех соседей.
         </p>
       </section>
 
@@ -30,10 +30,13 @@ export function HomePage() {
         <h2 className="rubric-title">Рубрики</h2>
         {error && <p className="form__error">{error}</p>}
         <ol className="rubrics">
-          {categories.map((category) => (
+          {categories.map((category, index) => (
             <li key={category.id}>
+              <span className="rubrics__number">
+                {String(index + 1).padStart(2, '0')}
+              </span>
               <strong>{category.name}</strong>
-              {category.description && <span>{category.description}</span>}
+              {category.description && <p>{category.description}</p>}
             </li>
           ))}
         </ol>
