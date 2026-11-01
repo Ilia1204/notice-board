@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-export const MAX_IMAGES = 5;
+export const MAX_IMAGES = 10;
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 export const TOO_MANY_IMAGES = `Можно прикрепить не больше ${MAX_IMAGES} фото`;

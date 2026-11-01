@@ -7,6 +7,7 @@ import {
   ImageStorage,
   imageExtension,
   MAX_IMAGE_SIZE,
+  MAX_IMAGES,
 } from './image-storage.service';
 
 // Начало настоящих файлов каждого формата
@@ -33,15 +34,18 @@ describe('ImageStorage', () => {
 
   afterEach(() => rm(dir, { recursive: true, force: true }));
 
-  it('пропускает до 5 фото JPG, PNG и WEBP', () => {
+  it('пропускает фото JPG, PNG и WEBP', () => {
     const files = [image('jpg'), image('png'), image('webp')];
     expect(() => storage.validate(files)).not.toThrow();
   });
 
-  it('не принимает больше 5 фото', () => {
-    expect(() =>
-      storage.validate(Array.from({ length: 6 }, () => image())),
-    ).toThrow('Можно прикрепить не больше 5 фото');
+  it('пропускает 10 фото и не принимает больше', () => {
+    expect(MAX_IMAGES).toBe(10);
+    const photos = (n: number) => Array.from({ length: n }, () => image());
+    expect(() => storage.validate(photos(10))).not.toThrow();
+    expect(() => storage.validate(photos(11))).toThrow(
+      'Можно прикрепить не больше 10 фото',
+    );
   });
 
   it('не принимает другие форматы', () => {
