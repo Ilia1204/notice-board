@@ -7,6 +7,11 @@ import { join, resolve } from 'node:path';
 export const MAX_IMAGES = 5;
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
+export const TOO_MANY_IMAGES = `Можно прикрепить не больше ${MAX_IMAGES} фото`;
+export const WRONG_IMAGE_FORMAT =
+  'Фото должны быть в формате JPG, PNG или WEBP';
+export const IMAGE_TOO_LARGE = 'Каждое фото должно быть не больше 5 МБ';
+
 export type UploadedImage = Pick<Express.Multer.File, 'size' | 'buffer'>;
 
 const PNG_SIGNATURE = Buffer.from([
@@ -44,18 +49,14 @@ export class ImageStorage {
 
   validate(files: UploadedImage[]): void {
     if (files.length > MAX_IMAGES) {
-      throw new BadRequestException(
-        `Можно прикрепить не больше ${MAX_IMAGES} фото`,
-      );
+      throw new BadRequestException(TOO_MANY_IMAGES);
     }
     for (const file of files) {
       if (!imageExtension(file.buffer)) {
-        throw new BadRequestException(
-          'Фото должны быть в формате JPG, PNG или WEBP',
-        );
+        throw new BadRequestException(WRONG_IMAGE_FORMAT);
       }
       if (file.size > MAX_IMAGE_SIZE) {
-        throw new BadRequestException('Каждое фото должно быть не больше 5 МБ');
+        throw new BadRequestException(IMAGE_TOO_LARGE);
       }
     }
   }

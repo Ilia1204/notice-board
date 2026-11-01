@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
+import { MAX_IMAGE_SIZE, MAX_IMAGES } from '../src/ads/image-storage.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createPrismaFake } from './prisma.fake';
 
@@ -144,6 +145,42 @@ describe('Ads (e2e)', () => {
       .expect(400);
     expect(res.body).toMatchObject({
       message: 'Фото должны быть в формате JPG, PNG или WEBP',
+    });
+  });
+
+  describe('ошибки загрузки фото — на русском', () => {
+    const form = () =>
+      server()
+        .post('/ads')
+        .set('Authorization', `Bearer ${userToken}`)
+        .field('title', 'Диван')
+        .field('description', 'Раскладной, серый, без пятен')
+        .field('categoryId', '1');
+
+    it('слишком много файлов', async () => {
+      let req = form();
+      for (let i = 0; i <= MAX_IMAGES * 2; i++) {
+        req = req.attach('images', PNG, `photo-${i}.png`);
+      }
+      const res = await req.expect(400);
+      expect(res.body).toMatchObject({
+        message: `Можно прикрепить не больше ${MAX_IMAGES} фото`,
+      });
+    });
+
+    it('слишком большой файл', async () => {
+      const big = Buffer.concat([PNG, Buffer.alloc(MAX_IMAGE_SIZE * 2)]);
+      const res = await form().attach('images', big, 'big.png').expect(400);
+      expect(res.body).toMatchObject({
+        message: 'Каждое фото должно быть не больше 5 МБ',
+      });
+    });
+
+    it('фото в другом поле формы', async () => {
+      const res = await form().attach('photo', PNG, 'sofa.png').expect(400);
+      expect(res.body).toMatchObject({
+        message: 'Фото нужно прикреплять в поле images',
+      });
     });
   });
 
