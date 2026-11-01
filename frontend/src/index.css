@@ -387,6 +387,30 @@ button:disabled {
   list-style: none;
 }
 
+.previews li {
+  position: relative;
+}
+
+.previews__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: rgb(34 48 42 / 75%);
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.previews__remove:hover {
+  background: var(--peach);
+}
+
 .previews img {
   display: block;
   width: 88px;

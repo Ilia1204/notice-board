@@ -14,7 +14,7 @@ export interface Ad {
   createdAt: string;
 }
 
-export const MAX_IMAGES = 5;
+export const MAX_IMAGES = 10;
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 export const imageUrl = (filename: string) => `${API_URL}/uploads/${filename}`;

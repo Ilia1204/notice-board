@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useAuth } from '../api/auth-context';
@@ -48,11 +49,21 @@ export function NewAdPage() {
     [previews],
   );
 
-  function handleImages(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
+  function showImages(files: File[]) {
     setError(imagesError(files));
     setImages(files);
     setPreviews(files.map((file) => URL.createObjectURL(file)));
+  }
+
+  // Новые фото добавляются к уже выбранным
+  function handleImages(event: ChangeEvent<HTMLInputElement>) {
+    showImages([...images, ...Array.from(event.target.files ?? [])]);
+    // Сбрасываем поле, чтобы то же фото можно было выбрать снова
+    event.target.value = '';
+  }
+
+  function removeImage(index: number) {
+    showImages(images.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -158,10 +169,12 @@ export function NewAdPage() {
             onChange={handleImages}
           />
           <span className="file-field__row">
-            <span className="file-field__button">Выбрать фото</span>
+            <span className="file-field__button">
+              {images.length > 0 ? 'Добавить ещё' : 'Выбрать фото'}
+            </span>
             <span>
               {images.length > 0
-                ? `Выбрано: ${images.length}`
+                ? `Выбрано: ${images.length} из ${MAX_IMAGES}`
                 : 'Файлы не выбраны'}
             </span>
           </span>
@@ -171,6 +184,14 @@ export function NewAdPage() {
             {previews.map((url, i) => (
               <li key={url}>
                 <img src={url} alt={`Фото ${i + 1}`} />
+                <button
+                  type="button"
+                  className="previews__remove"
+                  aria-label={`Убрать фото ${i + 1}`}
+                  onClick={() => removeImage(i)}
+                >
+                  <X size={14} aria-hidden />
+                </button>
               </li>
             ))}
           </ul>
