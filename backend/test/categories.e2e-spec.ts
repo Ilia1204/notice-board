@@ -80,6 +80,11 @@ describe('Categories (e2e)', () => {
       .set('Authorization', `Bearer ${moderatorToken}`)
       .send({ name: '' })
       .expect(400);
+    await server()
+      .post('/categories')
+      .set('Authorization', `Bearer ${moderatorToken}`)
+      .send({ name: '    ' })
+      .expect(400);
   });
 
   it('модератор переименовывает и удаляет категорию', async () => {
