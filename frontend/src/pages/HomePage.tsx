@@ -1,3 +1,4 @@
+import { Bike, Smartphone, Sofa } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { categoriesApi } from '../api/categories';
 import type { Category } from '../api/categories';
@@ -15,33 +16,46 @@ export function HomePage() {
 
   return (
     <main className="content">
-      <section className="lead">
-        <p className="kicker">Объявления от соседей</p>
-        <h2 className="lead__title">
-          Продают, ищут и&nbsp;предлагают&nbsp;— <mark>рядом с&nbsp;вами</mark>
-        </h2>
-        <p className="lead__text">
-          Подать объявление&nbsp;— бесплатно. Модератор проверит его, и&nbsp;оно
-          появится в&nbsp;нужной рубрике для всех соседей.
-        </p>
+      <section className="hero">
+        <div>
+          <h2 className="hero__title">
+            Вещам&nbsp;— <em>вторая жизнь</em>, соседям&nbsp;— выгода
+          </h2>
+          <p className="hero__text">
+            Доска объявлений Ульяновска. Отдайте ненужное и&nbsp;найдите нужное
+            рядом с&nbsp;домом.
+          </p>
+        </div>
+        {/* Декоративный коллаж вместо фото, пока объявлений нет */}
+        <div className="collage" aria-hidden>
+          <div className="collage__card collage__card--green">
+            <Bike size={64} strokeWidth={1.5} />
+          </div>
+          <div className="collage__card collage__card--peach">
+            <Sofa size={56} strokeWidth={1.5} />
+          </div>
+          <div className="collage__card collage__card--sand">
+            <Smartphone size={44} strokeWidth={1.5} />
+          </div>
+        </div>
       </section>
 
       <section>
-        <h2 className="rubric-title">Рубрики</h2>
+        <h2 className="section-title">Рубрики</h2>
         {error && <p className="form__error">{error}</p>}
-        <ol className="rubrics">
-          {categories.map((category, index) => (
-            <li key={category.id}>
-              <span className="rubrics__number">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <strong>{category.name}</strong>
-              {category.description && <p>{category.description}</p>}
+        <ul className="chips">
+          {categories.map((category) => (
+            <li
+              key={category.id}
+              className="chip"
+              title={category.description ?? undefined}
+            >
+              {category.name}
             </li>
           ))}
-        </ol>
-        <p className="note">
-          Скоро здесь появятся объявления — следите за выпусками.
+        </ul>
+        <p className="empty">
+          Скоро здесь появятся объявления — загляните чуть позже.
         </p>
       </section>
     </main>

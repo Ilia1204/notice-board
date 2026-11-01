@@ -109,7 +109,7 @@ export function NewAdPage() {
       <form className="form form--wide" onSubmit={handleSubmit}>
         <h2>Новое объявление</h2>
         <p className="form__hint">
-          Заполните купон — объявление выйдет после проверки модератором.
+          Объявление появится на сайте после проверки модератором.
         </p>
         <label>
           Заголовок
