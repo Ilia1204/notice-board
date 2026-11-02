@@ -57,7 +57,7 @@ test.describe('Т3. Просмотр списка объявлений', () => {
     await page.getByRole('button', { name: 'Все' }).click();
     await page.getByRole('searchbox', { name: /Поиск/ }).fill('ноутбук');
     await page.getByRole('button', { name: 'Найти' }).click();
-    await expect(list.getByRole('article')).toHaveCount(1);
+    await expect(list.getByRole('link')).toHaveCount(1);
     await expect(list.getByText('Ноутбук Lenovo ThinkPad T480')).toBeVisible();
   });
 
@@ -73,5 +73,34 @@ test.describe('Т3. Просмотр списка объявлений', () => {
     await page.goto('/');
     await expect(page.getByText('Ремонт стиральных машин')).toBeVisible();
     await expect(page.getByText('Секретный шкаф')).toBeHidden();
+  });
+});
+
+// Т4. Карточка объявления
+test.describe('Т4. Просмотр карточки объявления', () => {
+  test('по клику открывается карточка с описанием, ценой и автором', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: /Ноутбук Lenovo/ }).click();
+
+    await expect(page).toHaveURL(/#\/ads\/\d+$/);
+    await expect(
+      page.getByRole('heading', { name: 'Ноутбук Lenovo ThinkPad T480' }),
+    ).toBeVisible();
+    await expect(page.getByText('23 000 ₽')).toBeVisible();
+    await expect(page.getByText('Продавец: Анна')).toBeVisible();
+    // Описание выводится с переносами строк, как его ввёл автор
+    const description = page.getByText(/Core i5/);
+    await expect(description).toHaveCSS('white-space', 'pre-line');
+    expect((await description.innerText()).split('\n')).toHaveLength(4);
+
+    await page.getByRole('link', { name: 'Все объявления' }).click();
+    await expect(page.getByRole('heading', { name: 'Рубрики' })).toBeVisible();
+  });
+
+  test('объявления не на сайте не открываются', async ({ page }) => {
+    await page.goto('/#/ads/999999');
+    await expect(page.getByRole('alert')).toHaveText('Объявление не найдено');
   });
 });
