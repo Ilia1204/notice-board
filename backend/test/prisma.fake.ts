@@ -132,6 +132,12 @@ export function createPrismaFake() {
             )
             .map(withRelations),
         ),
+      findFirst: ({ where }: { where: Pick<Ad, 'id' | 'status'> }) => {
+        const ad = ads.find(
+          (a) => a.id === where.id && a.status === where.status,
+        );
+        return Promise.resolve(ad ? withRelations(ad) : null);
+      },
       create: ({ data }: { data: AdData }) =>
         Promise.resolve().then(() => {
           const { images, ...fields } = data;

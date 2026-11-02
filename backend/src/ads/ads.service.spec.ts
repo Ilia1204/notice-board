@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,7 +20,9 @@ const photo = { mimetype: 'image/jpeg', size: 100, buffer: Buffer.from('') };
 
 describe('AdsService', () => {
   let service: AdsService;
-  const prisma = { ad: { create: jest.fn(), findMany: jest.fn() } };
+  const prisma = {
+    ad: { create: jest.fn(), findMany: jest.fn(), findFirst: jest.fn() },
+  };
   const images = {
     validate: jest.fn(),
     save: jest.fn(),
@@ -61,6 +63,22 @@ describe('AdsService', () => {
           title: { contains: 'велик', mode: 'insensitive' },
         },
       }),
+    );
+  });
+
+  it('открывает опубликованное объявление', async () => {
+    prisma.ad.findFirst.mockResolvedValue({ id: 5 });
+    await expect(service.findPublishedOne(5)).resolves.toEqual({ id: 5 });
+    expect(prisma.ad.findFirst).toHaveBeenCalledWith({
+      where: { id: 5, status: 'PUBLISHED' },
+      include: adInclude,
+    });
+  });
+
+  it('не открывает несуществующее или неопубликованное объявление', async () => {
+    prisma.ad.findFirst.mockResolvedValue(null);
+    await expect(service.findPublishedOne(5)).rejects.toBeInstanceOf(
+      NotFoundException,
     );
   });
 

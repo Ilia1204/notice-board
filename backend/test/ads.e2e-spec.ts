@@ -262,6 +262,27 @@ describe('Ads (e2e)', () => {
       expect(titles(res.body)).toEqual(['Велосипед детский']);
     });
 
+    it('открывает карточку опубликованного объявления', async () => {
+      const id = prisma.ads.at(-1)!.id;
+      const res = await server().get(`/ads/${id}`).expect(200);
+      expect(res.body).toMatchObject({
+        title: 'Шкаф-купе',
+        description: bike.description,
+        category: { name: 'Мебель' },
+        author: { id: 2, name: 'Иван' },
+      });
+      expect(res.body).not.toHaveProperty('author.email');
+    });
+
+    it('не открывает объявление на модерации', async () => {
+      const res = await server().get('/ads/1').expect(404);
+      expect(res.body).toMatchObject({ message: 'Объявление не найдено' });
+    });
+
+    it('не принимает id не числом', () => {
+      return server().get('/ads/abc').expect(400);
+    });
+
     it('не принимает неверную рубрику', () => {
       return server().get('/ads?categoryId=abc').expect(400);
     });

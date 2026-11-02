@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AdStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdDto } from './dto/create-ad.dto';
@@ -35,6 +39,16 @@ export class AdsService {
       include: adInclude,
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // Неопубликованное объявление для посетителей как будто не существует
+  async findPublishedOne(id: number): Promise<AdWithRelations> {
+    const ad = await this.prisma.ad.findFirst({
+      where: { id, status: AdStatus.PUBLISHED },
+      include: adInclude,
+    });
+    if (!ad) throw new NotFoundException('Объявление не найдено');
+    return ad;
   }
 
   async create(
