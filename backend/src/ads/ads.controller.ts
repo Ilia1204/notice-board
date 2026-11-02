@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
+  Query,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -12,10 +14,17 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdImagesInterceptor } from './ad-images.interceptor';
 import { AdsService, type AdWithRelations } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
+import { ListAdsDto } from './dto/list-ads.dto';
 
 @Controller('ads')
 export class AdsController {
   constructor(private readonly adsService: AdsService) {}
+
+  // Список объявлений доступен всем, в том числе гостям
+  @Get()
+  findAll(@Query() query: ListAdsDto): Promise<AdWithRelations[]> {
+    return this.adsService.findPublished(query);
+  }
 
   // Публиковать объявления могут только вошедшие пользователи
   @Post()

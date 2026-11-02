@@ -11,13 +11,30 @@ type AdData = Pick<
   Ad,
   'title' | 'description' | 'price' | 'categoryId' | 'authorId'
 > & { images: { create: { filename: string; position: number }[] } };
+type AdWhere = Pick<Ad, 'status'> &
+  Partial<Pick<Ad, 'categoryId'>> & { title?: { contains: string } };
 
 // Простая замена PrismaService в памяти для интеграционных тестов
 export function createPrismaFake() {
   const users: User[] = [];
   const categories: Category[] = [];
   const ads: Ad[] = [];
+  const adImages = new Map<number, { filename: string }[]>();
   let nextCategoryId = 1;
+
+  const withRelations = (ad: Ad) => {
+    const category = categories.find((c) => c.id === ad.categoryId);
+    const author = users.find((u) => u.id === ad.authorId);
+    return {
+      ...ad,
+      category: { id: ad.categoryId, name: category?.name ?? '' },
+      author: { id: ad.authorId, name: author?.name ?? '' },
+      images: (adImages.get(ad.id) ?? []).map((image, i) => ({
+        id: i + 1,
+        filename: image.filename,
+      })),
+    };
+  };
 
   const findCategory = (id: number) => {
     const category = categories.find((c) => c.id === id);
@@ -94,13 +111,33 @@ export function createPrismaFake() {
         }),
     },
     ad: {
-      // Как и в базе, вместе с объявлением отдаём категорию и автора
+      // Как и в базе, вместе с объявлением отдаём категорию, автора и фото
+      findMany: ({ where }: { where: AdWhere }) =>
+        Promise.resolve(
+          ads
+            .filter(
+              (ad) =>
+                ad.status === where.status &&
+                (where.categoryId === undefined ||
+                  ad.categoryId === where.categoryId) &&
+                (!where.title ||
+                  ad.title
+                    .toLowerCase()
+                    .includes(where.title.contains.toLowerCase())),
+            )
+            // Созданные в одну миллисекунду упорядочиваем по id
+            .sort(
+              (a, b) =>
+                b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id,
+            )
+            .map(withRelations),
+        ),
       create: ({ data }: { data: AdData }) =>
         Promise.resolve().then(() => {
           const { images, ...fields } = data;
-          const category = categories.find((c) => c.id === fields.categoryId);
-          const author = users.find((u) => u.id === fields.authorId);
-          if (!category) throw knownError('P2003');
+          if (!categories.some((c) => c.id === fields.categoryId)) {
+            throw knownError('P2003');
+          }
           const now = new Date();
           const ad: Ad = {
             id: ads.length + 1,
@@ -110,15 +147,8 @@ export function createPrismaFake() {
             ...fields,
           };
           ads.push(ad);
-          return {
-            ...ad,
-            category: { id: category.id, name: category.name },
-            author: { id: ad.authorId, name: author?.name ?? '' },
-            images: images.create.map((image, i) => ({
-              id: i + 1,
-              filename: image.filename,
-            })),
-          };
+          adImages.set(ad.id, images.create);
+          return withRelations(ad);
         }),
     },
     $disconnect: () => Promise.resolve(),

@@ -1,10 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { AdStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdDto } from './dto/create-ad.dto';
+import { ListAdsDto } from './dto/list-ads.dto';
 import { ImageStorage, type UploadedImage } from './image-storage.service';
 
-// Вместе с объявлением отдаём категорию, имя автора и фото — без email и пароля
 export const adInclude = {
   category: { select: { id: true, name: true } },
   author: { select: { id: true, name: true } },
@@ -25,7 +25,18 @@ export class AdsService {
     private readonly images: ImageStorage,
   ) {}
 
-  // Новое объявление получает статус «на модерации» (PENDING по умолчанию)
+  findPublished({ categoryId, q }: ListAdsDto): Promise<AdWithRelations[]> {
+    return this.prisma.ad.findMany({
+      where: {
+        status: AdStatus.PUBLISHED,
+        categoryId,
+        title: q ? { contains: q, mode: 'insensitive' } : undefined,
+      },
+      include: adInclude,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async create(
     authorId: number,
     dto: CreateAdDto,
