@@ -1,4 +1,5 @@
 import { ImageOff } from 'lucide-react';
+import { Link } from 'react-router';
 import { formatPrice, imageUrl } from '../api/ads';
 import type { Ad } from '../api/ads';
 
@@ -12,7 +13,7 @@ export function AdCard({ ad }: { ad: Ad }) {
   const cover = ad.images[0];
 
   return (
-    <article className="ad-card">
+    <Link to={`/ads/${ad.id}`} className="ad-card">
       {cover ? (
         <img
           className="ad-card__photo"
@@ -32,6 +33,6 @@ export function AdCard({ ad }: { ad: Ad }) {
           {ad.category.name} · {dateFormat.format(new Date(ad.createdAt))}
         </p>
       </div>
-    </article>
+    </Link>
   );
 }

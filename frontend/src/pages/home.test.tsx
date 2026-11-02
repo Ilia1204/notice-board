@@ -41,7 +41,7 @@ describe('список объявлений', () => {
   it('гость видит карточки с фото, ценой, рубрикой и датой', async () => {
     openHome();
     const list = await screen.findByRole('list', { name: 'Объявления' });
-    const cards = within(list).getAllByRole('article');
+    const cards = within(list).getAllByRole('link');
     expect(cards).toHaveLength(2);
 
     expect(
@@ -50,6 +50,7 @@ describe('список объявлений', () => {
     expect(cards[0]).toHaveTextContent(/12\s500 ₽/);
     expect(cards[0]).toHaveTextContent('Транспорт · 2 ноября');
     expect(cards[1]).toHaveTextContent('Договорная');
+    expect(cards[0]).toHaveAttribute('href', '#/ads/1');
   });
 
   it('фильтрует по рубрике', async () => {

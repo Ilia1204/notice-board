@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  ParseIntPipe,
   Post,
   Query,
   UploadedFiles,
@@ -24,6 +26,11 @@ export class AdsController {
   @Get()
   findAll(@Query() query: ListAdsDto): Promise<AdWithRelations[]> {
     return this.adsService.findPublished(query);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number): Promise<AdWithRelations> {
+    return this.adsService.findPublishedOne(id);
   }
 
   // Публиковать объявления могут только вошедшие пользователи

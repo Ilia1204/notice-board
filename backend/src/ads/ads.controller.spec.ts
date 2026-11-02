@@ -4,7 +4,11 @@ import { AdsService } from './ads.service';
 
 describe('AdsController', () => {
   let controller: AdsController;
-  const service = { create: jest.fn(), findPublished: jest.fn() };
+  const service = {
+    create: jest.fn(),
+    findPublished: jest.fn(),
+    findPublishedOne: jest.fn(),
+  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -20,6 +24,11 @@ describe('AdsController', () => {
       categoryId: 3,
       q: 'велосипед',
     });
+  });
+
+  it('открывает объявление по id', async () => {
+    await controller.findOne(5);
+    expect(service.findPublishedOne).toHaveBeenCalledWith(5);
   });
 
   it('публикует объявление от текущего пользователя', async () => {

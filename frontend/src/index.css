@@ -252,11 +252,23 @@ h2 {
 }
 
 .ad-card {
+  display: block;
   height: 100%;
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform 0.15s;
   overflow: hidden;
   background: var(--card);
   border-radius: 20px;
   box-shadow: 0 18px 40px -32px rgb(34 48 42 / 55%);
+}
+
+.ad-card:hover {
+  transform: translateY(-3px);
+}
+
+.ad-card:hover .ad-card__title {
+  color: var(--peach);
 }
 
 .ad-card__photo {
@@ -505,6 +517,120 @@ button:disabled {
   border-radius: 16px;
 }
 
+/* Страница объявления */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.ad-page {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+.ad-page__photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 24px;
+}
+
+.ad-page__photo.ad-card__photo--empty {
+  display: grid;
+}
+
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thumbs button {
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  background: none;
+  cursor: pointer;
+}
+
+.thumbs button[aria-pressed='true'] {
+  border-color: var(--green);
+}
+
+.thumbs img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.ad-page__info {
+  padding: 28px 32px;
+  background: var(--card);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px -36px rgb(34 48 42 / 45%);
+}
+
+.ad-page__category {
+  margin: 0;
+  color: var(--peach);
+  font-weight: 600;
+}
+
+.ad-page__title {
+  margin: 6px 0 0;
+  font-size: 34px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.ad-page__price {
+  margin: 14px 0 0;
+  font-family: var(--font-title);
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.ad-page__seller {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 12px 16px;
+  background: var(--green-light);
+  border-radius: 14px;
+  color: var(--green);
+}
+
+.ad-page__info h3 {
+  margin: 24px 0 8px;
+  font-size: 18px;
+}
+
+/* Переносы строк из формы сохраняются */
+.ad-page__description {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.ad-page__date {
+  margin: 20px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
 /* Управление категориями */
 .panel {
   max-width: 820px;
@@ -596,6 +722,15 @@ button:disabled {
 
   .collage {
     height: 220px;
+  }
+
+  .ad-page {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .ad-page__info {
+    padding: 24px 18px;
   }
 
   .collage__card--green {
