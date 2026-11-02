@@ -16,9 +16,10 @@ describe('Ads (e2e)', () => {
   let app: INestApplication<App>;
   let moderatorToken: string;
   let userToken: string;
+  let prisma: ReturnType<typeof createPrismaFake>;
 
   beforeAll(async () => {
-    const prisma = createPrismaFake();
+    prisma = createPrismaFake();
     prisma.users.push({
       id: 2,
       email: 'ivan@mail.ru',
@@ -219,6 +220,51 @@ describe('Ads (e2e)', () => {
       .set('Authorization', `Bearer ${userToken}`)
       .send({ ...bike, categoryId: 99 })
       .expect(400);
+  });
+
+  describe('список объявлений', () => {
+    beforeAll(async () => {
+      await server()
+        .post('/categories')
+        .set('Authorization', `Bearer ${moderatorToken}`)
+        .send({ name: 'Мебель' })
+        .expect(201);
+      for (const [title, categoryId] of [
+        ['Велосипед детский', 1],
+        ['Шкаф-купе', 2],
+      ] as const) {
+        await server()
+          .post('/ads')
+          .set('Authorization', `Bearer ${userToken}`)
+          .send({ ...bike, title, categoryId })
+          .expect(201);
+      }
+      // Модерации ещё нет (Т6) — публикуем два последних напрямую
+      prisma.ads.slice(-2).forEach((ad) => (ad.status = 'PUBLISHED'));
+    });
+
+    const titles = (body: unknown) =>
+      (body as { title: string }[]).map((ad) => ad.title);
+
+    it('гость видит только опубликованные, новые сверху', async () => {
+      const res = await server().get('/ads').expect(200);
+      expect(titles(res.body)).toEqual(['Шкаф-купе', 'Велосипед детский']);
+      expect(res.body).not.toHaveProperty('0.author.email');
+    });
+
+    it('фильтрует по рубрике', async () => {
+      const res = await server().get('/ads?categoryId=2').expect(200);
+      expect(titles(res.body)).toEqual(['Шкаф-купе']);
+    });
+
+    it('ищет по названию без учёта регистра', async () => {
+      const res = await server().get('/ads?q=%20ВЕЛОСИПЕД%20').expect(200);
+      expect(titles(res.body)).toEqual(['Велосипед детский']);
+    });
+
+    it('не принимает неверную рубрику', () => {
+      return server().get('/ads?categoryId=abc').expect(400);
+    });
   });
 
   it('не даёт удалить категорию с объявлениями', async () => {

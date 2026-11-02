@@ -7,7 +7,9 @@ test.describe('Гость', () => {
     await expect(
       page.getByRole('heading', { name: /вторая жизнь/ }),
     ).toBeVisible();
-    await expect(page.getByText('Электроника')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Электроника' }),
+    ).toBeVisible();
     await expect(page.getByRole('link', { name: 'Войти' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Регистрация' })).toBeVisible();
   });

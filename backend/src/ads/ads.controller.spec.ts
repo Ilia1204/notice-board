@@ -4,7 +4,7 @@ import { AdsService } from './ads.service';
 
 describe('AdsController', () => {
   let controller: AdsController;
-  const service = { create: jest.fn() };
+  const service = { create: jest.fn(), findPublished: jest.fn() };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -12,6 +12,14 @@ describe('AdsController', () => {
       providers: [{ provide: AdsService, useValue: service }],
     }).compile();
     controller = moduleRef.get(AdsController);
+  });
+
+  it('отдаёт список с фильтрами из запроса', async () => {
+    await controller.findAll({ categoryId: 3, q: 'велосипед' });
+    expect(service.findPublished).toHaveBeenCalledWith({
+      categoryId: 3,
+      q: 'велосипед',
+    });
   });
 
   it('публикует объявление от текущего пользователя', async () => {

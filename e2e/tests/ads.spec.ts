@@ -38,3 +38,40 @@ test.describe('Т2. Публикация объявления', () => {
     await expect(page.getByAltText('Велосипед Stels')).toBeVisible();
   });
 });
+
+// Т3. Список объявлений — примеры объявлений добавляет seed
+test.describe('Т3. Просмотр списка объявлений', () => {
+  test('гость видит список, фильтрует по рубрике и ищет по названию', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const list = page.getByRole('list', { name: 'Объявления' });
+    await expect(list.getByText('Велосипед Stels Navigator')).toBeVisible();
+    await expect(list.getByText('Ремонт стиральных машин')).toBeVisible();
+    await expect(list.getByText('Договорная')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Транспорт' }).click();
+    await expect(list.getByText('Ремонт стиральных машин')).toBeHidden();
+    await expect(list.getByText('Велосипед Stels Navigator')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Все' }).click();
+    await page.getByRole('searchbox', { name: /Поиск/ }).fill('ноутбук');
+    await page.getByRole('button', { name: 'Найти' }).click();
+    await expect(list.getByRole('article')).toHaveCount(1);
+    await expect(list.getByText('Ноутбук Lenovo ThinkPad T480')).toBeVisible();
+  });
+
+  test('объявление на модерации в списке не видно', async ({ page }) => {
+    await register(page, uniqueUser());
+    await page.goto('/#/ads/new');
+    await page.getByLabel('Заголовок').fill('Секретный шкаф');
+    await page.getByLabel('Категория').selectOption({ label: 'Услуги' });
+    await page.getByLabel('Описание').fill('Ещё не прошёл модерацию');
+    await page.getByRole('button', { name: 'Опубликовать' }).click();
+    await expect(page.getByText('отправлено на модерацию')).toBeVisible();
+
+    await page.goto('/');
+    await expect(page.getByText('Ремонт стиральных машин')).toBeVisible();
+    await expect(page.getByText('Секретный шкаф')).toBeHidden();
+  });
+});

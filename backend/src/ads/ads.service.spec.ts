@@ -20,7 +20,7 @@ const photo = { mimetype: 'image/jpeg', size: 100, buffer: Buffer.from('') };
 
 describe('AdsService', () => {
   let service: AdsService;
-  const prisma = { ad: { create: jest.fn() } };
+  const prisma = { ad: { create: jest.fn(), findMany: jest.fn() } };
   const images = {
     validate: jest.fn(),
     save: jest.fn(),
@@ -38,6 +38,30 @@ describe('AdsService', () => {
       ],
     }).compile();
     service = moduleRef.get(AdsService);
+  });
+
+  it('в списке только опубликованные объявления, новые сверху', async () => {
+    prisma.ad.findMany.mockResolvedValue([]);
+    await service.findPublished({});
+    expect(prisma.ad.findMany).toHaveBeenCalledWith({
+      where: { status: 'PUBLISHED', categoryId: undefined, title: undefined },
+      include: adInclude,
+      orderBy: { createdAt: 'desc' },
+    });
+  });
+
+  it('фильтрует список по рубрике и названию без учёта регистра', async () => {
+    prisma.ad.findMany.mockResolvedValue([]);
+    await service.findPublished({ categoryId: 3, q: 'велик' });
+    expect(prisma.ad.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: 'PUBLISHED',
+          categoryId: 3,
+          title: { contains: 'велик', mode: 'insensitive' },
+        },
+      }),
+    );
   });
 
   it('публикует объявление от имени автора, убирая лишние пробелы', async () => {
