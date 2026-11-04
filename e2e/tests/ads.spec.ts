@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { login, register, uniqueUser } from './helpers';
+import { login, MODERATOR, register, uniqueUser } from './helpers';
 
 // Минимальная PNG-картинка 1×1
 const PNG = Buffer.from(
@@ -175,5 +175,81 @@ test.describe('Т5. Редактирование и удаление объяв�
     await page.getByRole('link', { name: /Ноутбук Lenovo/ }).click();
     await page.getByRole('link', { name: 'Изменить' }).click();
     await expect(page.getByLabel('Заголовок')).toHaveValue(/Ноутбук Lenovo/);
+  });
+});
+
+// Т6. Модерация
+test.describe('Т6. Модерация объявлений', () => {
+  // Название с меткой времени: очередь общая для всех тестов
+  async function submitAd(page: Page) {
+    const title = `Проверка ${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    await register(page, uniqueUser());
+    await page.goto('/#/ads/new');
+    await page.getByLabel('Заголовок').fill(title);
+    await page.getByLabel('Категория').selectOption({ label: 'Услуги' });
+    await page.getByLabel('Описание').fill('Объявление для модератора');
+    await page.getByRole('button', { name: 'Опубликовать' }).click();
+    await expect(page.getByText('отправлено на модерацию')).toBeVisible();
+    await page.getByRole('button', { name: 'Выйти' }).click();
+    return title;
+  }
+
+  async function openQueue(page: Page) {
+    await login(page, MODERATOR.email, MODERATOR.password);
+    await page.getByRole('link', { name: 'Модерация' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Модерация' }),
+    ).toBeVisible();
+  }
+
+  const queueItem = (page: Page, title: string) =>
+    page
+      .getByRole('list', { name: 'Объявления на проверке' })
+      .getByRole('listitem')
+      .filter({ hasText: title });
+
+  test('модератор публикует, потом скрывает объявление', async ({ page }) => {
+    const title = await submitAd(page);
+    await openQueue(page);
+
+    const item = queueItem(page, title);
+    await item.getByRole('button', { name: 'Опубликовать' }).click();
+    await expect(item).toBeHidden();
+
+    await page.goto('/');
+    await page.getByRole('searchbox', { name: /Поиск/ }).fill(title);
+    await page.getByRole('button', { name: 'Найти' }).click();
+    await page.getByRole('link', { name: new RegExp(title) }).click();
+
+    page.once('dialog', (dialog) => void dialog.accept());
+    await page.getByRole('button', { name: 'Скрыть' }).click();
+    await expect(page.getByRole('heading', { name: 'Рубрики' })).toBeVisible();
+
+    await page.getByRole('searchbox', { name: /Поиск/ }).fill(title);
+    await page.getByRole('button', { name: 'Найти' }).click();
+    await expect(page.getByText('Ничего не нашлось')).toBeVisible();
+  });
+
+  test('отклонённое объявление на сайт не попадает', async ({ page }) => {
+    const title = await submitAd(page);
+    await openQueue(page);
+
+    const item = queueItem(page, title);
+    await item.getByRole('button', { name: 'Отклонить' }).click();
+    await expect(item).toBeHidden();
+
+    await page.goto('/');
+    await page.getByRole('searchbox', { name: /Поиск/ }).fill(title);
+    await page.getByRole('button', { name: 'Найти' }).click();
+    await expect(page.getByText('Ничего не нашлось')).toBeVisible();
+  });
+
+  test('обычному пользователю очередь недоступна', async ({ page }) => {
+    await register(page, uniqueUser());
+    await expect(page.getByRole('link', { name: 'Модерация' })).toBeHidden();
+    await page.goto('/#/moderation');
+    await expect(
+      page.getByText('Раздел доступен только модераторам.'),
+    ).toBeVisible();
   });
 });
