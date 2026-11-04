@@ -11,9 +11,9 @@ type AdData = Pick<
   Ad,
   'title' | 'description' | 'price' | 'categoryId' | 'authorId'
 > & { images: { create: { filename: string; position: number }[] } };
-type AdUpdate = Omit<AdData, 'authorId' | 'images'> &
-  Pick<Ad, 'status'> & {
-    images: AdData['images'] & { deleteMany: { id: { in: number[] } } };
+type AdUpdate = Pick<Ad, 'status'> &
+  Partial<Omit<AdData, 'authorId' | 'images'>> & {
+    images?: AdData['images'] & { deleteMany: { id: { in: number[] } } };
   };
 type AdWhere = Partial<Pick<Ad, 'status' | 'categoryId' | 'authorId'>> & {
   title?: { contains: string };
@@ -181,16 +181,21 @@ export function createPrismaFake() {
         Promise.resolve().then(() => {
           const ad = findAd(where.id);
           const { images, ...fields } = data;
-          if (!categories.some((c) => c.id === fields.categoryId)) {
+          if (
+            fields.categoryId !== undefined &&
+            !categories.some((c) => c.id === fields.categoryId)
+          ) {
             throw knownError('P2003');
           }
           Object.assign(ad, fields, { updatedAt: new Date() });
-          adImages.set(ad.id, [
-            ...(adImages.get(ad.id) ?? []).filter(
-              (image) => !images.deleteMany.id.in.includes(image.id),
-            ),
-            ...toRows(images.create),
-          ]);
+          if (images) {
+            adImages.set(ad.id, [
+              ...(adImages.get(ad.id) ?? []).filter(
+                (image) => !images.deleteMany.id.in.includes(image.id),
+              ),
+              ...toRows(images.create),
+            ]);
+          }
           return withRelations(ad);
         }),
       delete: ({ where }: { where: Pick<Ad, 'id'> }) =>

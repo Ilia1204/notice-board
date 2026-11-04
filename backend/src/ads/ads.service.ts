@@ -58,6 +58,33 @@ export class AdsService {
     return ad;
   }
 
+  // Очередь модератора: первым проверяем то, что ждёт дольше
+  findPending(): Promise<AdWithRelations[]> {
+    return this.prisma.ad.findMany({
+      where: { status: AdStatus.PENDING },
+      include: adInclude,
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async moderate(id: number, status: AdStatus): Promise<AdWithRelations> {
+    try {
+      return await this.prisma.ad.update({
+        where: { id },
+        data: { status },
+        include: adInclude,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Объявление не найдено');
+      }
+      throw error;
+    }
+  }
+
   // Автору видны все его объявления, в том числе непрошедшие проверку
   findByAuthor(authorId: number): Promise<AdWithRelations[]> {
     return this.prisma.ad.findMany({

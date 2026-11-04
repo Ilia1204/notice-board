@@ -245,8 +245,13 @@ describe('Ads (e2e)', () => {
           .send({ ...bike, title, categoryId })
           .expect(201);
       }
-      // Модерации ещё нет (Т6) — публикуем два последних напрямую
-      prisma.ads.slice(-2).forEach((ad) => (ad.status = 'PUBLISHED'));
+      for (const ad of prisma.ads.slice(-2)) {
+        await server()
+          .patch(`/ads/${ad.id}/status`)
+          .set('Authorization', `Bearer ${moderatorToken}`)
+          .send({ status: 'PUBLISHED' })
+          .expect(200);
+      }
     });
 
     const titles = (body: unknown) =>
@@ -291,6 +296,104 @@ describe('Ads (e2e)', () => {
 
     it('не принимает неверную рубрику', () => {
       return server().get('/ads?categoryId=abc').expect(400);
+    });
+  });
+
+  describe('модерация', () => {
+    let adId: number;
+    const as = (token: string) => `Bearer ${token}`;
+    const decide = (id: number, status: string, token = moderatorToken) =>
+      server()
+        .patch(`/ads/${id}/status`)
+        .set('Authorization', as(token))
+        .send({ status });
+
+    beforeEach(async () => {
+      const res = await server()
+        .post('/ads')
+        .set('Authorization', as(userToken))
+        .send({ ...bike, title: 'На проверке' })
+        .expect(201);
+      adId = (res.body as { id: number }).id;
+    });
+
+    const publishedIds = async () => {
+      const res = await server().get('/ads').expect(200);
+      return (res.body as { id: number }[]).map((ad) => ad.id);
+    };
+
+    it('очередь видит только модератор', async () => {
+      await server().get('/ads/moderation').expect(401);
+      await server()
+        .get('/ads/moderation')
+        .set('Authorization', as(userToken))
+        .expect(403);
+      const res = await server()
+        .get('/ads/moderation')
+        .set('Authorization', as(moderatorToken))
+        .expect(200);
+      const queue = res.body as { id: number; status: string }[];
+      expect(queue.map((ad) => ad.id)).toContain(adId);
+      expect(queue.every((ad) => ad.status === 'PENDING')).toBe(true);
+    });
+
+    it('решение принимает только модератор', async () => {
+      await server()
+        .patch(`/ads/${adId}/status`)
+        .send({ status: 'PUBLISHED' })
+        .expect(401);
+      await decide(adId, 'PUBLISHED', userToken).expect(403);
+      await server().get(`/ads/${adId}`).expect(404);
+    });
+
+    it('опубликованное объявление появляется на сайте', async () => {
+      const res = await decide(adId, 'PUBLISHED').expect(200);
+      expect(res.body).toMatchObject({ status: 'PUBLISHED' });
+      expect(await publishedIds()).toContain(adId);
+      await server().get(`/ads/${adId}`).expect(200);
+    });
+
+    it('отклонённое на сайт не попадает, автор его видит', async () => {
+      await decide(adId, 'REJECTED').expect(200);
+      expect(await publishedIds()).not.toContain(adId);
+      const res = await server()
+        .get(`/ads/mine/${adId}`)
+        .set('Authorization', as(userToken))
+        .expect(200);
+      expect(res.body).toMatchObject({ status: 'REJECTED' });
+    });
+
+    it('скрытое модератором объявление пропадает из списка', async () => {
+      await decide(adId, 'PUBLISHED').expect(200);
+      await decide(adId, 'REJECTED').expect(200);
+      expect(await publishedIds()).not.toContain(adId);
+      await server().get(`/ads/${adId}`).expect(404);
+    });
+
+    it('исправленное отклонённое снова попадает в очередь', async () => {
+      await decide(adId, 'REJECTED').expect(200);
+      await server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(userToken))
+        .send(bike)
+        .expect(200);
+      const res = await server()
+        .get('/ads/moderation')
+        .set('Authorization', as(moderatorToken))
+        .expect(200);
+      expect((res.body as { id: number }[]).map((ad) => ad.id)).toContain(adId);
+    });
+
+    it('принимает только решения модератора', async () => {
+      const res = await decide(adId, 'PENDING').expect(400);
+      expect((res.body as { message: string[] }).message).toContain(
+        'Выберите решение модератора',
+      );
+    });
+
+    it('сообщает, если объявления нет', async () => {
+      const res = await decide(99999, 'PUBLISHED').expect(404);
+      expect(res.body).toMatchObject({ message: 'Объявление не найдено' });
     });
   });
 

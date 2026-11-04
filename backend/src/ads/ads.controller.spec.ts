@@ -10,6 +10,8 @@ describe('AdsController', () => {
     findPublishedOne: jest.fn(),
     findByAuthor: jest.fn(),
     findOwn: jest.fn(),
+    findPending: jest.fn(),
+    moderate: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
   };
@@ -47,6 +49,13 @@ describe('AdsController', () => {
     expect(service.findByAuthor).toHaveBeenCalledWith(5);
     await controller.findMineOne(user, 7);
     expect(service.findOwn).toHaveBeenCalledWith(7, 5);
+  });
+
+  it('отдаёт очередь и передаёт решение модератора', async () => {
+    await controller.findPending();
+    expect(service.findPending).toHaveBeenCalled();
+    await controller.moderate(7, { status: 'PUBLISHED' });
+    expect(service.moderate).toHaveBeenCalledWith(7, 'PUBLISHED');
   });
 
   it('меняет и удаляет объявление от имени текущего пользователя', async () => {
