@@ -20,7 +20,7 @@ export function AdPage() {
   const [ad, setAd] = useState<Ad | null>(null);
   const [photo, setPhoto] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     adsApi
@@ -32,16 +32,28 @@ export function AdPage() {
       .catch((e: Error) => setError(e.message));
   }, [id]);
 
-  async function remove(target: Ad) {
-    if (!window.confirm(`Удалить объявление «${target.title}»?`)) return;
-    setRemoveError(null);
+  async function act(question: string, action: () => Promise<unknown>) {
+    if (!window.confirm(question)) return;
+    setActionError(null);
     try {
-      await adsApi.remove(target.id, token!);
-      await navigate('/my-ads');
+      await action();
     } catch (e) {
-      setRemoveError((e as Error).message);
+      setActionError((e as Error).message);
     }
   }
+
+  const remove = (target: Ad) =>
+    act(`Удалить объявление «${target.title}»?`, async () => {
+      await adsApi.remove(target.id, token!);
+      await navigate('/my-ads');
+    });
+
+  // Скрытое объявление больше не открывается, поэтому уходим на главную
+  const hide = (target: Ad) =>
+    act(`Скрыть объявление «${target.title}»?`, async () => {
+      await adsApi.moderate(target.id, 'REJECTED', token!);
+      await navigate('/');
+    });
 
   if (error || !ad) {
     return (
@@ -107,21 +119,32 @@ export function AdPage() {
           <p className="ad-page__date">
             Опубликовано {dateFormat.format(new Date(ad.createdAt))}
           </p>
-          {user?.id === ad.author.id && (
-            <div className="ad-page__actions">
-              <Link to={`/ads/${ad.id}/edit`} className="action">
-                Изменить
-              </Link>
+          <div className="ad-page__actions">
+            {user?.id === ad.author.id && (
+              <>
+                <Link to={`/ads/${ad.id}/edit`} className="action">
+                  Изменить
+                </Link>
+                <button
+                  type="button"
+                  className="action action--danger"
+                  onClick={() => void remove(ad)}
+                >
+                  Удалить
+                </button>
+              </>
+            )}
+            {user?.role === 'MODERATOR' && (
               <button
                 type="button"
                 className="action action--danger"
-                onClick={() => void remove(ad)}
+                onClick={() => void hide(ad)}
               >
-                Удалить
+                Скрыть
               </button>
-            </div>
-          )}
-          <FormError message={removeError} />
+            )}
+          </div>
+          <FormError message={actionError} />
         </div>
       </article>
     </main>

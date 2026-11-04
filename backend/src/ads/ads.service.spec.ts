@@ -169,6 +169,44 @@ describe('AdsService', () => {
     await expect(service.create(7, bike)).rejects.toThrow('connection lost');
   });
 
+  describe('модерация', () => {
+    it('очередь: только объявления на проверке, старые сверху', async () => {
+      prisma.ad.findMany.mockResolvedValue([]);
+      await service.findPending();
+      expect(prisma.ad.findMany).toHaveBeenCalledWith({
+        where: { status: 'PENDING' },
+        include: adInclude,
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+
+    it('меняет статус объявления', async () => {
+      prisma.ad.update.mockResolvedValue({ id: 5, status: 'REJECTED' });
+      await expect(service.moderate(5, 'REJECTED')).resolves.toMatchObject({
+        status: 'REJECTED',
+      });
+      expect(prisma.ad.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { status: 'REJECTED' },
+        include: adInclude,
+      });
+    });
+
+    it('сообщает, если объявления уже нет', async () => {
+      prisma.ad.update.mockRejectedValue(prismaError('P2025'));
+      await expect(service.moderate(5, 'PUBLISHED')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('пробрасывает прочие ошибки базы данных', async () => {
+      prisma.ad.update.mockRejectedValue(new Error('connection lost'));
+      await expect(service.moderate(5, 'PUBLISHED')).rejects.toThrow(
+        'connection lost',
+      );
+    });
+  });
+
   describe('свои объявления', () => {
     const stored = {
       id: 5,

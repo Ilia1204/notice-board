@@ -1,6 +1,7 @@
 import { API_URL, apiRequest } from './client';
 
 export type AdStatus = 'PENDING' | 'PUBLISHED' | 'REJECTED';
+export type ModerationDecision = Exclude<AdStatus, 'PENDING'>;
 
 export interface Ad {
   id: number;
@@ -42,6 +43,13 @@ export const adsApi = {
   mine: (token: string) => apiRequest<Ad[]>('/ads/mine', { token }),
   getMine: (id: number, token: string) =>
     apiRequest<Ad>(`/ads/mine/${id}`, { token }),
+  pending: (token: string) => apiRequest<Ad[]>('/ads/moderation', { token }),
+  moderate: (id: number, status: ModerationDecision, token: string) =>
+    apiRequest<Ad>(`/ads/${id}/status`, {
+      method: 'PATCH',
+      body: { status },
+      token,
+    }),
   // Поля и фото уходят одной формой multipart/form-data
   create: (form: FormData, token: string) =>
     apiRequest<Ad>('/ads', { method: 'POST', body: form, token }),

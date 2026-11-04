@@ -132,4 +132,49 @@ describe('карточка объявления', () => {
       expect(screen.getByText('Велосипед Stels')).toBeInTheDocument();
     });
   });
+
+  describe('кнопка модератора', () => {
+    const asModerator = () => {
+      localStorage.setItem('notice-board.token', 'tok');
+      return {
+        'GET /auth/me': [
+          200,
+          { id: 1, email: 'm@b.c', name: 'Модератор', role: 'MODERATOR' },
+        ],
+      };
+    };
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('обычный пользователь её не видит', async () => {
+      localStorage.setItem('notice-board.token', 'tok');
+      openAd({
+        'GET /auth/me': [
+          200,
+          { id: 9, email: 'a@b.c', name: 'Я', role: 'USER' },
+        ],
+      });
+      await screen.findByRole('button', { name: 'Выйти' });
+      expect(screen.queryByRole('button', { name: 'Скрыть' })).toBeNull();
+    });
+
+    it('скрывает объявление и возвращает на главную', async () => {
+      vi.stubGlobal('confirm', () => true);
+      openAd({
+        ...asModerator(),
+        'PATCH /ads/1/status': [200, { ...bike, status: 'REJECTED' }],
+      });
+      fireEvent.click(await screen.findByRole('button', { name: 'Скрыть' }));
+      expect(
+        await screen.findByRole('heading', { name: 'Рубрики' }),
+      ).toBeInTheDocument();
+    });
+
+    it('без подтверждения ничего не меняет', async () => {
+      vi.stubGlobal('confirm', () => false);
+      openAd(asModerator());
+      fireEvent.click(await screen.findByRole('button', { name: 'Скрыть' }));
+      expect(screen.getByText('Велосипед Stels')).toBeInTheDocument();
+    });
+  });
 });

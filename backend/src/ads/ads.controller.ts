@@ -13,13 +13,17 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import type { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { AdImagesInterceptor } from './ad-images.interceptor';
 import { AdsService, type AdWithRelations } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { ListAdsDto } from './dto/list-ads.dto';
+import { ModerateAdDto } from './dto/moderate-ad.dto';
 import { UpdateAdDto } from './dto/update-ad.dto';
 
 @Controller('ads')
@@ -32,7 +36,14 @@ export class AdsController {
     return this.adsService.findPublished(query);
   }
 
-  // Адреса mine должны стоять раньше :id, иначе mine примется за id
+  // Адреса mine и moderation должны стоять раньше :id, иначе примутся за id
+  @Get('moderation')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MODERATOR)
+  findPending(): Promise<AdWithRelations[]> {
+    return this.adsService.findPending();
+  }
+
   @Get('mine')
   @UseGuards(JwtAuthGuard)
   findMine(@CurrentUser() user: JwtPayload): Promise<AdWithRelations[]> {
@@ -63,6 +74,17 @@ export class AdsController {
     @UploadedFiles() files: Express.Multer.File[] = [],
   ): Promise<AdWithRelations> {
     return this.adsService.create(user.sub, dto, files);
+  }
+
+  // Опубликовать, отклонить или скрыть объявление может только модератор
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MODERATOR)
+  moderate(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ModerateAdDto,
+  ): Promise<AdWithRelations> {
+    return this.adsService.moderate(id, dto.status);
   }
 
   // Менять и удалять объявление может только его автор
