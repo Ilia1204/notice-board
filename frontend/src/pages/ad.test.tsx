@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { mockApi } from '../test/mock-api';
 
@@ -79,5 +79,57 @@ describe('карточка объявления', () => {
     expect(
       screen.getByRole('link', { name: /Все объявления/ }),
     ).toHaveAttribute('href', '#/');
+  });
+
+  describe('кнопки автора', () => {
+    const asUser = (id: number) => {
+      localStorage.setItem('notice-board.token', 'tok');
+      return {
+        'GET /auth/me': [
+          200,
+          { id, email: 'a@b.c', name: 'Анна', role: 'USER' },
+        ],
+      };
+    };
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('гость и чужой пользователь кнопок не видят', async () => {
+      openAd();
+      await screen.findByRole('heading', { name: 'Велосипед Stels' });
+      expect(screen.queryByRole('button', { name: 'Удалить' })).toBeNull();
+      cleanup();
+
+      openAd(asUser(9));
+      await screen.findByRole('button', { name: 'Выйти' });
+      expect(screen.queryByRole('link', { name: 'Изменить' })).toBeNull();
+    });
+
+    it('автор переходит к редактированию', async () => {
+      openAd(asUser(2));
+      expect(
+        await screen.findByRole('link', { name: 'Изменить' }),
+      ).toHaveAttribute('href', '#/ads/1/edit');
+    });
+
+    it('автор удаляет объявление после подтверждения', async () => {
+      vi.stubGlobal('confirm', () => true);
+      openAd({ ...asUser(2), 'DELETE /ads/1': [204, null] });
+      fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }));
+      expect(
+        await screen.findByRole('heading', { name: 'Мои объявления' }),
+      ).toBeInTheDocument();
+    });
+
+    it('показывает ошибку удаления на карточке', async () => {
+      vi.stubGlobal('confirm', () => true);
+      openAd({
+        ...asUser(2),
+        'DELETE /ads/1': [403, { message: 'Нельзя' }],
+      });
+      fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Нельзя');
+      expect(screen.getByText('Велосипед Stels')).toBeInTheDocument();
+    });
   });
 });

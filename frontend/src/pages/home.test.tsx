@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import App from '../App';
 import { mockApi } from '../test/mock-api';
@@ -58,8 +64,11 @@ describe('список объявлений', () => {
     await screen.findByText('Ремонт стиральных машин');
 
     fireEvent.click(screen.getByRole('button', { name: 'Транспорт' }));
-    await screen.findByText('Велосипед Stels');
-    expect(screen.queryByText('Ремонт стиральных машин')).toBeNull();
+    // Велосипед есть и в старом списке, поэтому ждём пропажи второй карточки
+    await waitFor(() =>
+      expect(screen.queryByText('Ремонт стиральных машин')).toBeNull(),
+    );
+    expect(screen.getByText('Велосипед Stels')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Транспорт' })).toHaveAttribute(
       'aria-pressed',
       'true',

@@ -8,7 +8,12 @@ describe('AdsController', () => {
     create: jest.fn(),
     findPublished: jest.fn(),
     findPublishedOne: jest.fn(),
+    findByAuthor: jest.fn(),
+    findOwn: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
   };
+  const user = { sub: 5, email: 'a@b.c', role: 'USER' as const };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -35,5 +40,20 @@ describe('AdsController', () => {
     const dto = { title: 'Велосипед', description: 'Горный', categoryId: 1 };
     await controller.create({ sub: 5, email: 'a@b.c', role: 'USER' }, dto, []);
     expect(service.create).toHaveBeenCalledWith(5, dto, []);
+  });
+
+  it('отдаёт объявления текущего пользователя', async () => {
+    await controller.findMine(user);
+    expect(service.findByAuthor).toHaveBeenCalledWith(5);
+    await controller.findMineOne(user, 7);
+    expect(service.findOwn).toHaveBeenCalledWith(7, 5);
+  });
+
+  it('меняет и удаляет объявление от имени текущего пользователя', async () => {
+    const dto = { title: 'Велосипед', description: 'Горный', categoryId: 1 };
+    await controller.update(user, 7, dto, []);
+    expect(service.update).toHaveBeenCalledWith(7, 5, dto, []);
+    await controller.remove(user, 7);
+    expect(service.remove).toHaveBeenCalledWith(7, 5);
   });
 });

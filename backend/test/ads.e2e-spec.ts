@@ -16,6 +16,7 @@ describe('Ads (e2e)', () => {
   let app: INestApplication<App>;
   let moderatorToken: string;
   let userToken: string;
+  let strangerToken: string;
   let prisma: ReturnType<typeof createPrismaFake>;
 
   beforeAll(async () => {
@@ -48,6 +49,11 @@ describe('Ads (e2e)', () => {
     userToken = await jwt.signAsync({
       sub: 2,
       email: 'ivan@mail.ru',
+      role: 'USER',
+    });
+    strangerToken = await jwt.signAsync({
+      sub: 3,
+      email: 'petr@mail.ru',
       role: 'USER',
     });
 
@@ -285,6 +291,187 @@ describe('Ads (e2e)', () => {
 
     it('не принимает неверную рубрику', () => {
       return server().get('/ads?categoryId=abc').expect(400);
+    });
+  });
+
+  describe('редактирование и удаление', () => {
+    let adId: number;
+    let photoIds: number[];
+    const as = (token: string) => `Bearer ${token}`;
+
+    // Объявление с двумя фото, уже прошедшее модерацию
+    beforeEach(async () => {
+      const res = await server()
+        .post('/ads')
+        .set('Authorization', as(userToken))
+        .field('title', 'Самокат')
+        .field('description', 'Складной, колёса целые')
+        .field('categoryId', '1')
+        .attach('images', PNG, 'a.png')
+        .attach('images', JPEG, 'b.jpg')
+        .expect(201);
+      const body = res.body as { id: number; images: { id: number }[] };
+      adId = body.id;
+      photoIds = body.images.map((image) => image.id);
+      prisma.ads.find((ad) => ad.id === adId)!.status = 'PUBLISHED';
+    });
+
+    it('гость не видит раздел «Мои объявления»', () => {
+      return server().get('/ads/mine').expect(401);
+    });
+
+    it('автор видит свои объявления с любым статусом', async () => {
+      const res = await server()
+        .get('/ads/mine')
+        .set('Authorization', as(userToken))
+        .expect(200);
+      const statuses = (res.body as { status: string }[]).map((a) => a.status);
+      expect(statuses).toEqual(
+        expect.arrayContaining(['PENDING', 'PUBLISHED']),
+      );
+    });
+
+    it('в чужом списке объявлений автора нет', async () => {
+      const res = await server()
+        .get('/ads/mine')
+        .set('Authorization', as(strangerToken))
+        .expect(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it('автор открывает своё объявление на проверке, чужой — нет', async () => {
+      await server()
+        .get('/ads/mine/1')
+        .set('Authorization', as(userToken))
+        .expect(200);
+      await server()
+        .get('/ads/mine/1')
+        .set('Authorization', as(strangerToken))
+        .expect(403);
+    });
+
+    it('автор меняет объявление, и оно снова уходит на проверку', async () => {
+      const res = await server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(userToken))
+        .send({ ...bike, title: 'Самокат новый', price: 3000 })
+        .expect(200);
+      expect(res.body).toMatchObject({
+        title: 'Самокат новый',
+        price: 3000,
+        status: 'PENDING',
+      });
+      await server().get(`/ads/${adId}`).expect(404);
+    });
+
+    it('автор убирает цену', async () => {
+      await server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(userToken))
+        .send({ ...bike, price: 3000 })
+        .expect(200);
+      const res = await server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(userToken))
+        .send({ ...bike, price: undefined })
+        .expect(200);
+      expect(res.body).toMatchObject({ price: null });
+    });
+
+    it('автор убирает одно фото и добавляет другое', async () => {
+      const res = await server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(userToken))
+        .field('title', 'Самокат')
+        .field('description', 'Складной, колёса целые')
+        .field('categoryId', '1')
+        .field('removeImageIds', String(photoIds[0]))
+        .attach('images', PNG, 'c.png')
+        .expect(200);
+      const images = (res.body as { images: { filename: string }[] }).images;
+      expect(images.map((i) => i.filename.split('.').pop())).toEqual([
+        'jpg',
+        'png',
+      ]);
+    });
+
+    it('убирает сразу несколько фото', async () => {
+      const res = await server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(userToken))
+        .field('title', 'Самокат')
+        .field('description', 'Складной, колёса целые')
+        .field('categoryId', '1')
+        .field('removeImageIds', String(photoIds[0]))
+        .field('removeImageIds', String(photoIds[1]))
+        .expect(200);
+      expect(res.body).toMatchObject({ images: [] });
+    });
+
+    it('проверяет поля так же, как при создании', async () => {
+      const res = await server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(userToken))
+        .send({ ...bike, title: 'Ве' })
+        .expect(400);
+      expect((res.body as { message: string[] }).message).toContain(
+        'Заголовок должен быть не короче 3 символов',
+      );
+    });
+
+    it('не принимает несуществующую категорию', () => {
+      return server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(userToken))
+        .send({ ...bike, categoryId: 99 })
+        .expect(400);
+    });
+
+    it('гость не может изменить или удалить объявление', async () => {
+      await server().patch(`/ads/${adId}`).send(bike).expect(401);
+      await server().delete(`/ads/${adId}`).expect(401);
+    });
+
+    it('чужое объявление изменить и удалить нельзя', async () => {
+      const edit = await server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(strangerToken))
+        .send({ ...bike, title: 'Взлом' })
+        .expect(403);
+      expect(edit.body).toMatchObject({
+        message: 'Можно менять только свои объявления',
+      });
+      await server()
+        .delete(`/ads/${adId}`)
+        .set('Authorization', as(strangerToken))
+        .expect(403);
+
+      const res = await server().get(`/ads/${adId}`).expect(200);
+      expect(res.body).toMatchObject({ title: 'Самокат' });
+    });
+
+    it('модератор не меняет чужие объявления как автор', () => {
+      return server()
+        .patch(`/ads/${adId}`)
+        .set('Authorization', as(moderatorToken))
+        .send(bike)
+        .expect(403);
+    });
+
+    it('автор удаляет объявление, и оно пропадает с сайта', async () => {
+      await server()
+        .delete(`/ads/${adId}`)
+        .set('Authorization', as(userToken))
+        .expect(204);
+      await server().get(`/ads/${adId}`).expect(404);
+    });
+
+    it('сообщает, если объявления нет', async () => {
+      const res = await server()
+        .delete('/ads/99999')
+        .set('Authorization', as(userToken))
+        .expect(404);
+      expect(res.body).toMatchObject({ message: 'Объявление не найдено' });
     });
   });
 

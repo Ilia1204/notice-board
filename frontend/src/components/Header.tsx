@@ -16,6 +16,7 @@ export function Header() {
               {user.role === 'MODERATOR' && (
                 <Link to="/categories">Категории</Link>
               )}
+              <Link to="/my-ads">Мои объявления</Link>
               <span className="header__user">
                 {user.name}
                 {user.role === 'MODERATOR' && (

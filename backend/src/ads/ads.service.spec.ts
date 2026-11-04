@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -21,7 +25,14 @@ const photo = { mimetype: 'image/jpeg', size: 100, buffer: Buffer.from('') };
 describe('AdsService', () => {
   let service: AdsService;
   const prisma = {
-    ad: { create: jest.fn(), findMany: jest.fn(), findFirst: jest.fn() },
+    ad: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
   };
   const images = {
     validate: jest.fn(),
@@ -156,5 +167,128 @@ describe('AdsService', () => {
   it('пробрасывает прочие ошибки базы данных', async () => {
     prisma.ad.create.mockRejectedValue(new Error('connection lost'));
     await expect(service.create(7, bike)).rejects.toThrow('connection lost');
+  });
+
+  describe('свои объявления', () => {
+    const stored = {
+      id: 5,
+      authorId: 7,
+      images: [
+        { id: 1, filename: 'a.jpg', position: 0 },
+        { id: 2, filename: 'b.jpg', position: 3 },
+      ],
+    };
+
+    beforeEach(() => {
+      prisma.ad.findUnique.mockResolvedValue(stored);
+      prisma.ad.update.mockResolvedValue(stored);
+    });
+
+    it('автор видит все свои объявления, новые сверху', async () => {
+      prisma.ad.findMany.mockResolvedValue([]);
+      await service.findByAuthor(7);
+      expect(prisma.ad.findMany).toHaveBeenCalledWith({
+        where: { authorId: 7 },
+        include: adInclude,
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('не находит несуществующее объявление', async () => {
+      prisma.ad.findUnique.mockResolvedValue(null);
+      await expect(service.findOwn(5, 7)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('не отдаёт чужое объявление', async () => {
+      await expect(service.findOwn(5, 8)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('изменённое объявление снова уходит на проверку', async () => {
+      await service.update(5, 7, { ...bike, title: ' Самокат ' });
+      expect(prisma.ad.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: {
+          title: 'Самокат',
+          description: bike.description,
+          price: null,
+          categoryId: 1,
+          status: 'PENDING',
+          images: { deleteMany: { id: { in: [] } }, create: [] },
+        },
+        include: adInclude,
+      });
+    });
+
+    it('чужое объявление изменить нельзя', async () => {
+      await expect(service.update(5, 8, bike, [photo])).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(images.save).not.toHaveBeenCalled();
+      expect(prisma.ad.update).not.toHaveBeenCalled();
+    });
+
+    it('новые фото встают в конец, убранные удаляются с диска', async () => {
+      images.save.mockResolvedValue(['c.jpg']);
+      await service.update(5, 7, { ...bike, removeImageIds: [1] }, [photo]);
+      expect(prisma.ad.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            images: {
+              deleteMany: { id: { in: [1] } },
+              create: [{ filename: 'c.jpg', position: 4 }],
+            },
+          }) as unknown,
+        }),
+      );
+      expect(images.remove).toHaveBeenCalledWith(['a.jpg']);
+    });
+
+    it('не трогает фото чужих объявлений', async () => {
+      await service.update(5, 7, { ...bike, removeImageIds: [99] });
+      expect(prisma.ad.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            images: { deleteMany: { id: { in: [] } }, create: [] },
+          }) as unknown,
+        }),
+      );
+      expect(images.remove).toHaveBeenCalledWith([]);
+    });
+
+    it('считает лимит вместе с оставшимися фото', async () => {
+      const files = Array.from({ length: 9 }, () => photo);
+      await expect(service.update(5, 7, bike, files)).rejects.toThrow(
+        'Можно прикрепить не больше 10 фото',
+      );
+      expect(images.save).not.toHaveBeenCalled();
+    });
+
+    it('при ошибке базы оставляет старые фото и удаляет новые', async () => {
+      images.save.mockResolvedValue(['c.jpg']);
+      prisma.ad.update.mockRejectedValue(prismaError('P2003'));
+      await expect(
+        service.update(5, 7, { ...bike, removeImageIds: [1] }, [photo]),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(images.remove).toHaveBeenCalledTimes(1);
+      expect(images.remove).toHaveBeenCalledWith(['c.jpg']);
+    });
+
+    it('удаляет объявление вместе с фото на диске', async () => {
+      await service.remove(5, 7);
+      expect(prisma.ad.delete).toHaveBeenCalledWith({ where: { id: 5 } });
+      expect(images.remove).toHaveBeenCalledWith(['a.jpg', 'b.jpg']);
+    });
+
+    it('чужое объявление удалить нельзя', async () => {
+      await expect(service.remove(5, 8)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(prisma.ad.delete).not.toHaveBeenCalled();
+      expect(images.remove).not.toHaveBeenCalled();
+    });
   });
 });

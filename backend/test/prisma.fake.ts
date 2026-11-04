@@ -11,16 +11,24 @@ type AdData = Pick<
   Ad,
   'title' | 'description' | 'price' | 'categoryId' | 'authorId'
 > & { images: { create: { filename: string; position: number }[] } };
-type AdWhere = Pick<Ad, 'status'> &
-  Partial<Pick<Ad, 'categoryId'>> & { title?: { contains: string } };
+type AdUpdate = Omit<AdData, 'authorId' | 'images'> &
+  Pick<Ad, 'status'> & {
+    images: AdData['images'] & { deleteMany: { id: { in: number[] } } };
+  };
+type AdWhere = Partial<Pick<Ad, 'status' | 'categoryId' | 'authorId'>> & {
+  title?: { contains: string };
+};
+type AdImageRow = { id: number; filename: string; position: number };
 
 // Простая замена PrismaService в памяти для интеграционных тестов
 export function createPrismaFake() {
   const users: User[] = [];
   const categories: Category[] = [];
   const ads: Ad[] = [];
-  const adImages = new Map<number, { filename: string }[]>();
+  const adImages = new Map<number, AdImageRow[]>();
   let nextCategoryId = 1;
+  let nextAdId = 1;
+  let nextImageId = 1;
 
   const withRelations = (ad: Ad) => {
     const category = categories.find((c) => c.id === ad.categoryId);
@@ -29,11 +37,18 @@ export function createPrismaFake() {
       ...ad,
       category: { id: ad.categoryId, name: category?.name ?? '' },
       author: { id: ad.authorId, name: author?.name ?? '' },
-      images: (adImages.get(ad.id) ?? []).map((image, i) => ({
-        id: i + 1,
-        filename: image.filename,
-      })),
+      images: [...(adImages.get(ad.id) ?? [])].sort(
+        (a, b) => a.position - b.position,
+      ),
     };
+  };
+
+  const toRows = (images: AdData['images']['create']): AdImageRow[] =>
+    images.map((image) => ({ id: nextImageId++, ...image }));
+  const findAd = (id: number) => {
+    const ad = ads.find((a) => a.id === id);
+    if (!ad) throw knownError('P2025');
+    return ad;
   };
 
   const findCategory = (id: number) => {
@@ -117,7 +132,9 @@ export function createPrismaFake() {
           ads
             .filter(
               (ad) =>
-                ad.status === where.status &&
+                (where.status === undefined || ad.status === where.status) &&
+                (where.authorId === undefined ||
+                  ad.authorId === where.authorId) &&
                 (where.categoryId === undefined ||
                   ad.categoryId === where.categoryId) &&
                 (!where.title ||
@@ -138,6 +155,10 @@ export function createPrismaFake() {
         );
         return Promise.resolve(ad ? withRelations(ad) : null);
       },
+      findUnique: ({ where }: { where: Pick<Ad, 'id'> }) => {
+        const ad = ads.find((a) => a.id === where.id);
+        return Promise.resolve(ad ? withRelations(ad) : null);
+      },
       create: ({ data }: { data: AdData }) =>
         Promise.resolve().then(() => {
           const { images, ...fields } = data;
@@ -146,15 +167,38 @@ export function createPrismaFake() {
           }
           const now = new Date();
           const ad: Ad = {
-            id: ads.length + 1,
+            id: nextAdId++,
             status: 'PENDING',
             createdAt: now,
             updatedAt: now,
             ...fields,
           };
           ads.push(ad);
-          adImages.set(ad.id, images.create);
+          adImages.set(ad.id, toRows(images.create));
           return withRelations(ad);
+        }),
+      update: ({ where, data }: { where: Pick<Ad, 'id'>; data: AdUpdate }) =>
+        Promise.resolve().then(() => {
+          const ad = findAd(where.id);
+          const { images, ...fields } = data;
+          if (!categories.some((c) => c.id === fields.categoryId)) {
+            throw knownError('P2003');
+          }
+          Object.assign(ad, fields, { updatedAt: new Date() });
+          adImages.set(ad.id, [
+            ...(adImages.get(ad.id) ?? []).filter(
+              (image) => !images.deleteMany.id.in.includes(image.id),
+            ),
+            ...toRows(images.create),
+          ]);
+          return withRelations(ad);
+        }),
+      delete: ({ where }: { where: Pick<Ad, 'id'> }) =>
+        Promise.resolve().then(() => {
+          const ad = findAd(where.id);
+          ads.splice(ads.indexOf(ad), 1);
+          adImages.delete(ad.id);
+          return ad;
         }),
     },
     $disconnect: () => Promise.resolve(),

@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   UploadedFiles,
@@ -17,6 +20,7 @@ import { AdImagesInterceptor } from './ad-images.interceptor';
 import { AdsService, type AdWithRelations } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { ListAdsDto } from './dto/list-ads.dto';
+import { UpdateAdDto } from './dto/update-ad.dto';
 
 @Controller('ads')
 export class AdsController {
@@ -26,6 +30,22 @@ export class AdsController {
   @Get()
   findAll(@Query() query: ListAdsDto): Promise<AdWithRelations[]> {
     return this.adsService.findPublished(query);
+  }
+
+  // Адреса mine должны стоять раньше :id, иначе mine примется за id
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  findMine(@CurrentUser() user: JwtPayload): Promise<AdWithRelations[]> {
+    return this.adsService.findByAuthor(user.sub);
+  }
+
+  @Get('mine/:id')
+  @UseGuards(JwtAuthGuard)
+  findMineOne(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<AdWithRelations> {
+    return this.adsService.findOwn(id, user.sub);
   }
 
   @Get(':id')
@@ -43,5 +63,28 @@ export class AdsController {
     @UploadedFiles() files: Express.Multer.File[] = [],
   ): Promise<AdWithRelations> {
     return this.adsService.create(user.sub, dto, files);
+  }
+
+  // Менять и удалять объявление может только его автор
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(AdImagesInterceptor)
+  update(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAdDto,
+    @UploadedFiles() files: Express.Multer.File[] = [],
+  ): Promise<AdWithRelations> {
+    return this.adsService.update(id, user.sub, dto, files);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  remove(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<void> {
+    return this.adsService.remove(id, user.sub);
   }
 }
