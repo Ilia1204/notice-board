@@ -39,7 +39,14 @@ export const formatPrice = (price: number | null) =>
 export const adsApi = {
   list: (filters: AdFilters = {}) => apiRequest<Ad[]>(`/ads${query(filters)}`),
   get: (id: number) => apiRequest<Ad>(`/ads/${id}`),
+  mine: (token: string) => apiRequest<Ad[]>('/ads/mine', { token }),
+  getMine: (id: number, token: string) =>
+    apiRequest<Ad>(`/ads/mine/${id}`, { token }),
   // Поля и фото уходят одной формой multipart/form-data
   create: (form: FormData, token: string) =>
     apiRequest<Ad>('/ads', { method: 'POST', body: form, token }),
+  update: (id: number, form: FormData, token: string) =>
+    apiRequest<Ad>(`/ads/${id}`, { method: 'PATCH', body: form, token }),
+  remove: (id: number, token: string) =>
+    apiRequest<void>(`/ads/${id}`, { method: 'DELETE', token }),
 };

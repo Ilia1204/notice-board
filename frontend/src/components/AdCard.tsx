@@ -9,11 +9,11 @@ const dateFormat = new Intl.DateTimeFormat('ru-RU', {
 });
 
 // Карточка в списке: первое фото, цена, название, рубрика и дата
-export function AdCard({ ad }: { ad: Ad }) {
+export function AdCard({ ad, to }: { ad: Ad; to?: string }) {
   const cover = ad.images[0];
 
   return (
-    <Link to={`/ads/${ad.id}`} className="ad-card">
+    <Link to={to ?? `/ads/${ad.id}`} className="ad-card">
       {cover ? (
         <img
           className="ad-card__photo"

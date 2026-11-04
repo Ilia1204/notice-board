@@ -1,94 +1,13 @@
-import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import type { ChangeEvent, FormEvent } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../api/auth-context';
-import { adsApi, imageUrl, MAX_IMAGE_SIZE, MAX_IMAGES } from '../api/ads';
+import { adsApi, imageUrl } from '../api/ads';
 import type { Ad } from '../api/ads';
-import { categoriesApi } from '../api/categories';
-import type { Category } from '../api/categories';
-import { FormError } from '../components/FormError';
-
-// Проверка фото до отправки; сервер повторяет её и отвечает теми же словами
-function imagesError(files: File[]): string | null {
-  if (files.length > MAX_IMAGES) {
-    return `Можно прикрепить не больше ${MAX_IMAGES} фото`;
-  }
-  if (
-    files.some(
-      (f) => !['image/jpeg', 'image/png', 'image/webp'].includes(f.type),
-    )
-  ) {
-    return 'Фото должны быть в формате JPG, PNG или WEBP';
-  }
-  if (files.some((f) => f.size > MAX_IMAGE_SIZE)) {
-    return 'Каждое фото должно быть не больше 5 МБ';
-  }
-  return null;
-}
+import { AdForm } from '../components/AdForm';
 
 // Публикация объявления (Т2) — только для вошедших пользователей
 export function NewAdPage() {
   const { token } = useAuth();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [images, setImages] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
   const [created, setCreated] = useState<Ad | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    categoriesApi
-      .list()
-      .then(setCategories)
-      .catch((e: Error) => setError(e.message));
-  }, []);
-
-  // Освобождаем память от старых превью
-  useEffect(
-    () => () => previews.forEach((url) => URL.revokeObjectURL(url)),
-    [previews],
-  );
-
-  function showImages(files: File[]) {
-    setError(imagesError(files));
-    setImages(files);
-    setPreviews(files.map((file) => URL.createObjectURL(file)));
-  }
-
-  // Новые фото добавляются к уже выбранным
-  function handleImages(event: ChangeEvent<HTMLInputElement>) {
-    showImages([...images, ...Array.from(event.target.files ?? [])]);
-    // Сбрасываем поле, чтобы то же фото можно было выбрать снова
-    event.target.value = '';
-  }
-
-  function removeImage(index: number) {
-    showImages(images.filter((_, i) => i !== index));
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const imageProblem = imagesError(images);
-    if (imageProblem) {
-      setError(imageProblem);
-      return;
-    }
-    const form = new FormData(event.currentTarget);
-    // Пустая цена — «договорная»
-    if (String(form.get('price')).trim() === '') form.delete('price');
-    images.forEach((image) => form.append('images', image));
-    setError(null);
-    setPending(true);
-    try {
-      setCreated(await adsApi.create(form, token!));
-      setImages([]);
-      setPreviews([]);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setPending(false);
-    }
-  }
 
   if (created) {
     const cover = created.images[0];
@@ -117,90 +36,13 @@ export function NewAdPage() {
 
   return (
     <main className="content">
-      <form className="form form--wide" onSubmit={handleSubmit}>
-        <h2>Новое объявление</h2>
-        <p className="form__hint">
-          Объявление появится на сайте после проверки модератором.
-        </p>
-        <label>
-          Заголовок
-          <input name="title" required minLength={3} maxLength={100} />
-        </label>
-        <label>
-          Категория
-          <select name="categoryId" required defaultValue="">
-            <option value="" disabled>
-              Выберите категорию
-            </option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Описание
-          <textarea
-            name="description"
-            required
-            minLength={10}
-            maxLength={2000}
-            rows={6}
-          />
-        </label>
-        <label>
-          Цена, ₽
-          <input
-            name="price"
-            type="number"
-            min={0}
-            step={1}
-            placeholder="Пусто — договорная"
-          />
-        </label>
-        {/* Своя кнопка вместо стандартной: у браузера она на английском */}
-        <label className="file-field">
-          Фото (до {MAX_IMAGES} шт., JPG/PNG/WEBP, до 5 МБ)
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            onChange={handleImages}
-          />
-          <span className="file-field__row">
-            <span className="file-field__button">
-              {images.length > 0 ? 'Добавить ещё' : 'Выбрать фото'}
-            </span>
-            <span>
-              {images.length > 0
-                ? `Выбрано: ${images.length} из ${MAX_IMAGES}`
-                : 'Файлы не выбраны'}
-            </span>
-          </span>
-        </label>
-        {previews.length > 0 && (
-          <ul className="previews">
-            {previews.map((url, i) => (
-              <li key={url}>
-                <img src={url} alt={`Фото ${i + 1}`} />
-                <button
-                  type="button"
-                  className="previews__remove"
-                  aria-label={`Убрать фото ${i + 1}`}
-                  onClick={() => removeImage(i)}
-                >
-                  <X size={14} aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <FormError message={error} />
-        <button type="submit" disabled={pending}>
-          {pending ? 'Публикация…' : 'Опубликовать'}
-        </button>
-      </form>
+      <AdForm
+        heading="Новое объявление"
+        hint="Объявление появится на сайте после проверки модератором."
+        submitLabel="Опубликовать"
+        pendingLabel="Публикация…"
+        onSubmit={async (form) => setCreated(await adsApi.create(form, token!))}
+      />
     </main>
   );
 }
