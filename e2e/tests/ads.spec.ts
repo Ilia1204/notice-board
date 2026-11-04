@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { register, uniqueUser } from './helpers';
+import type { Page } from '@playwright/test';
+import { login, register, uniqueUser } from './helpers';
 
 // Минимальная PNG-картинка 1×1
 const PNG = Buffer.from(
@@ -102,5 +103,77 @@ test.describe('Т4. Просмотр карточки объявления', () 
   test('объявления не на сайте не открываются', async ({ page }) => {
     await page.goto('/#/ads/999999');
     await expect(page.getByRole('alert')).toHaveText('Объявление не найдено');
+  });
+});
+
+// Т5. Редактирование и удаление
+test.describe('Т5. Редактирование и удаление объявления', () => {
+  async function publish(page: Page, title: string) {
+    await page.goto('/#/ads/new');
+    await page.getByLabel('Заголовок').fill(title);
+    await page.getByLabel('Категория').selectOption({ label: 'Услуги' });
+    await page.getByLabel('Описание').fill('Описание для проверки правок');
+    await page.getByLabel('Цена, ₽').fill('1000');
+    await page.getByRole('button', { name: 'Опубликовать' }).click();
+    await expect(page.getByText('отправлено на модерацию')).toBeVisible();
+  }
+
+  test('автор меняет своё объявление', async ({ page }) => {
+    await register(page, uniqueUser());
+    await publish(page, 'Старая лампа');
+
+    await page.getByRole('link', { name: 'Мои объявления' }).click();
+    await expect(page.getByText('На проверке')).toBeVisible();
+    await page.getByRole('link', { name: 'Изменить Старая лампа' }).click();
+
+    await expect(page.getByLabel('Заголовок')).toHaveValue('Старая лампа');
+    await expect(page.getByLabel('Категория')).toHaveValue(/\d+/);
+    await page.getByLabel('Заголовок').fill('Новая лампа');
+    await page.getByLabel('Цена, ₽').fill('');
+    await page.getByRole('button', { name: 'Сохранить' }).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Мои объявления' }),
+    ).toBeVisible();
+    const list = page.getByRole('list', { name: 'Мои объявления' });
+    await expect(list.getByText('Новая лампа')).toBeVisible();
+    await expect(list.getByText('Договорная')).toBeVisible();
+    await expect(list.getByText('Старая лампа')).toBeHidden();
+  });
+
+  test('автор удаляет своё объявление', async ({ page }) => {
+    await register(page, uniqueUser());
+    await publish(page, 'Лишнее объявление');
+    await page.getByRole('link', { name: 'Мои объявления' }).click();
+
+    page.once('dialog', (dialog) => void dialog.accept());
+    await page.getByRole('button', { name: 'Удалить Лишнее' }).click();
+    await expect(page.getByText('Вы ещё ничего не подавали')).toBeVisible();
+  });
+
+  test('чужое объявление изменить нельзя', async ({ page }) => {
+    await register(page, uniqueUser());
+    await page.goto('/');
+    await page.getByRole('link', { name: /Ноутбук Lenovo/ }).click();
+    await expect(page.getByText('Продавец: Анна')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Изменить' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Удалить' })).toBeHidden();
+
+    // Прямой адрес формы тоже не откроется
+    const id = page.url().split('/').pop();
+    await page.goto(`/#/ads/${id}/edit`);
+    await expect(page.getByRole('alert')).toHaveText(
+      'Можно менять только свои объявления',
+    );
+    await expect(page.getByRole('button', { name: 'Сохранить' })).toBeHidden();
+  });
+
+  test('автор видит кнопки на своей карточке', async ({ page }) => {
+    await login(page, 'demo@board.local', 'demo12345');
+    await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible();
+    await page.goto('/');
+    await page.getByRole('link', { name: /Ноутбук Lenovo/ }).click();
+    await page.getByRole('link', { name: 'Изменить' }).click();
+    await expect(page.getByLabel('Заголовок')).toHaveValue(/Ноутбук Lenovo/);
   });
 });
