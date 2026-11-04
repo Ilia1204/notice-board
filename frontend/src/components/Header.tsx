@@ -14,7 +14,10 @@ export function Header() {
           {user ? (
             <>
               {user.role === 'MODERATOR' && (
-                <Link to="/categories">Категории</Link>
+                <>
+                  <Link to="/moderation">Модерация</Link>
+                  <Link to="/categories">Категории</Link>
+                </>
               )}
               <Link to="/my-ads">Мои объявления</Link>
               <span className="header__user">

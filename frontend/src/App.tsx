@@ -7,6 +7,7 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { EditAdPage } from './pages/EditAdPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { ModerationPage } from './pages/ModerationPage';
 import { MyAdsPage } from './pages/MyAdsPage';
 import { NewAdPage } from './pages/NewAdPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -43,6 +44,14 @@ function App() {
             element={
               <RequireRole>
                 <MyAdsPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/moderation"
+            element={
+              <RequireRole role="MODERATOR">
+                <ModerationPage />
               </RequireRole>
             }
           />
