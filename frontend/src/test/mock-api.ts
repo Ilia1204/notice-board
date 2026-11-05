@@ -9,7 +9,7 @@ export function mockApi(routes: Record<string, Route>) {
     const key = `${init?.method ?? 'GET'} ${path}`;
     const [status, body] =
       routes[key] ??
-      (['GET /categories', 'GET /ads'].includes(key)
+      (['GET /categories', 'GET /ads', 'GET /favorites'].includes(key)
         ? [200, []]
         : [404, { message: key }]);
     return Promise.resolve(

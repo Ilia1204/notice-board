@@ -253,3 +253,40 @@ test.describe('Т6. Модерация объявлений', () => {
     ).toBeVisible();
   });
 });
+
+// Т8. Избранное — примеры объявлений добавляет seed
+test.describe('Т8. Избранное', () => {
+  const title = 'Велосипед Stels Navigator';
+
+  test('гость не видит сердечек', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByText(title)).toBeVisible();
+    await expect(page.getByRole('button', { name: /избранн/i })).toHaveCount(0);
+  });
+
+  test('пользователь добавляет объявление и убирает его', async ({ page }) => {
+    await register(page, uniqueUser());
+    await page.goto('/');
+    await page.getByRole('button', { name: `В избранное: ${title}` }).click();
+    await expect(
+      page.getByRole('button', { name: `В избранном: ${title}` }),
+    ).toBeVisible();
+
+    await page.getByRole('link', { name: 'Избранное' }).click();
+    const list = page.getByRole('list', { name: 'Избранное' });
+    await expect(list.getByText(title)).toBeVisible();
+
+    // Избранное хранится на сервере и переживает перезагрузку
+    await page.reload();
+    await expect(list.getByText(title)).toBeVisible();
+
+    await list.getByRole('link', { name: new RegExp(title) }).click();
+    await page.getByRole('button', { name: 'В избранном' }).click();
+    await expect(
+      page.getByRole('button', { name: 'В избранное' }),
+    ).toBeVisible();
+
+    await page.getByRole('link', { name: 'Избранное' }).click();
+    await expect(page.getByText('Здесь пока пусто')).toBeVisible();
+  });
+});

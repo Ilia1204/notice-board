@@ -1,4 +1,10 @@
-import { Prisma, type Ad, type Category, type User } from '@prisma/client';
+import {
+  Prisma,
+  type Ad,
+  type Category,
+  type Favorite,
+  type User,
+} from '@prisma/client';
 
 const knownError = (code: string) =>
   new Prisma.PrismaClientKnownRequestError(code, {
@@ -19,6 +25,7 @@ type AdWhere = Partial<Pick<Ad, 'status' | 'categoryId' | 'authorId'>> & {
   title?: { contains: string };
 };
 type AdImageRow = { id: number; filename: string; position: number };
+type FavoriteKey = Pick<Favorite, 'userId' | 'adId'>;
 
 // Простая замена PrismaService в памяти для интеграционных тестов
 export function createPrismaFake() {
@@ -26,6 +33,7 @@ export function createPrismaFake() {
   const categories: Category[] = [];
   const ads: Ad[] = [];
   const adImages = new Map<number, AdImageRow[]>();
+  const favorites: Favorite[] = [];
   let nextCategoryId = 1;
   let nextAdId = 1;
   let nextImageId = 1;
@@ -205,6 +213,43 @@ export function createPrismaFake() {
           adImages.delete(ad.id);
           return ad;
         }),
+    },
+    favorite: {
+      // Записи лежат по порядку добавления, поэтому свежие — с конца
+      findMany: ({
+        where,
+      }: {
+        where: Pick<Favorite, 'userId'> & { ad: Pick<Ad, 'status'> };
+      }) =>
+        Promise.resolve(
+          favorites
+            .filter(
+              (favorite) =>
+                favorite.userId === where.userId &&
+                findAd(favorite.adId).status === where.ad.status,
+            )
+            .reverse()
+            .map((favorite) => ({
+              ...favorite,
+              ad: withRelations(findAd(favorite.adId)),
+            })),
+        ),
+      upsert: ({ create }: { create: FavoriteKey }) => {
+        const found = favorites.find(
+          (f) => f.userId === create.userId && f.adId === create.adId,
+        );
+        if (found) return Promise.resolve(found);
+        const favorite: Favorite = { ...create, createdAt: new Date() };
+        favorites.push(favorite);
+        return Promise.resolve(favorite);
+      },
+      deleteMany: ({ where }: { where: FavoriteKey }) => {
+        const index = favorites.findIndex(
+          (f) => f.userId === where.userId && f.adId === where.adId,
+        );
+        if (index >= 0) favorites.splice(index, 1);
+        return Promise.resolve({ count: index >= 0 ? 1 : 0 });
+      },
     },
     $disconnect: () => Promise.resolve(),
   };
