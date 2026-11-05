@@ -4,6 +4,8 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useAuth } from '../api/auth-context';
 import { adsApi, formatPrice, imageUrl } from '../api/ads';
 import type { Ad } from '../api/ads';
+import { useFavorites } from '../api/favorites-context';
+import { FavoriteButton } from '../components/FavoriteButton';
 import { FormError } from '../components/FormError';
 
 const dateFormat = new Intl.DateTimeFormat('ru-RU', {
@@ -16,6 +18,7 @@ const dateFormat = new Intl.DateTimeFormat('ru-RU', {
 export function AdPage() {
   const { id } = useParams();
   const { user, token } = useAuth();
+  const { error: favoritesError } = useFavorites();
   const navigate = useNavigate();
   const [ad, setAd] = useState<Ad | null>(null);
   const [photo, setPhoto] = useState(0);
@@ -120,6 +123,7 @@ export function AdPage() {
             Опубликовано {dateFormat.format(new Date(ad.createdAt))}
           </p>
           <div className="ad-page__actions">
+            <FavoriteButton ad={ad} withText />
             {user?.id === ad.author.id && (
               <>
                 <Link to={`/ads/${ad.id}/edit`} className="action">
@@ -144,7 +148,7 @@ export function AdPage() {
               </button>
             )}
           </div>
-          <FormError message={actionError} />
+          <FormError message={actionError ?? favoritesError} />
         </div>
       </article>
     </main>

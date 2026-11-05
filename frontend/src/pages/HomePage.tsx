@@ -5,13 +5,17 @@ import { adsApi } from '../api/ads';
 import type { Ad, AdFilters } from '../api/ads';
 import { categoriesApi } from '../api/categories';
 import type { Category } from '../api/categories';
+import { useFavorites } from '../api/favorites-context';
 import { AdCard } from '../components/AdCard';
+import { FavoriteButton } from '../components/FavoriteButton';
+import { FormError } from '../components/FormError';
 
 export function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [ads, setAds] = useState<Ad[] | null>(null);
   const [filters, setFilters] = useState<AdFilters>({});
   const [error, setError] = useState<string | null>(null);
+  const { error: favoritesError } = useFavorites();
 
   useEffect(() => {
     categoriesApi
@@ -82,6 +86,7 @@ export function HomePage() {
       <section>
         <h2 className="section-title">Рубрики</h2>
         {error && <p className="form__error">{error}</p>}
+        <FormError message={favoritesError} />
         <ul className="chips">
           <li>
             <button
@@ -111,8 +116,9 @@ export function HomePage() {
         {ads && ads.length > 0 && (
           <ul className="ad-grid" aria-label="Объявления">
             {ads.map((ad) => (
-              <li key={ad.id}>
+              <li key={ad.id} className="favorable">
                 <AdCard ad={ad} />
+                <FavoriteButton ad={ad} />
               </li>
             ))}
           </ul>

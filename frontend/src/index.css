@@ -669,6 +669,41 @@ button:disabled {
   color: #fff;
 }
 
+/* Избранное */
+.favorable {
+  position: relative;
+}
+
+.favorite {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  padding: 8px;
+  background: var(--card);
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 6px 16px -8px rgb(34 48 42 / 55%);
+}
+
+.favorite:hover,
+.favorite[aria-pressed='true'] {
+  color: var(--peach);
+}
+
+.favorite-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.favorite-action[aria-pressed='true'] {
+  background: var(--peach-light);
+  color: var(--error);
+}
+
 /* Очередь модератора */
 .moderation {
   display: grid;
