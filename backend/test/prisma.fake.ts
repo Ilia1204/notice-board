@@ -90,6 +90,21 @@ export function createPrismaFake() {
         users.push(user);
         return Promise.resolve(user);
       },
+      update: ({
+        where,
+        data,
+      }: {
+        where: Pick<User, 'id'>;
+        data: Pick<User, 'name' | 'email'>;
+      }) =>
+        Promise.resolve().then(() => {
+          const user = users.find((u) => u.id === where.id);
+          if (!user) throw knownError('P2025');
+          if (users.some((u) => u.email === data.email && u !== user)) {
+            throw knownError('P2002');
+          }
+          return Object.assign(user, data);
+        }),
     },
     category: {
       findMany: () =>
