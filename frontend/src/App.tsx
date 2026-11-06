@@ -12,6 +12,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ModerationPage } from './pages/ModerationPage';
 import { MyAdsPage } from './pages/MyAdsPage';
 import { NewAdPage } from './pages/NewAdPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 
 // HashRouter: адреса вида /#/login работают и на GitHub Pages без настройки сервера
@@ -55,6 +56,14 @@ function App() {
               element={
                 <RequireRole>
                   <FavoritesPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <RequireRole>
+                  <ProfilePage />
                 </RequireRole>
               }
             />

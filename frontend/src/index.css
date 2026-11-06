@@ -430,6 +430,15 @@ button:disabled {
   font-size: 14px;
 }
 
+.form__success {
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--green-light);
+  border-radius: 12px;
+  color: var(--green);
+  font-size: 14px;
+}
+
 /* Выбор фото: своя кнопка вместо английской стандартной */
 .file-field {
   position: relative;
@@ -743,6 +752,10 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.profile-ads {
+  margin-top: 40px;
 }
 
 .status {
