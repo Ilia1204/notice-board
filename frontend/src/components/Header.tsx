@@ -22,7 +22,7 @@ export function Header() {
               <Link to="/favorites">Избранное</Link>
               <Link to="/my-ads">Мои объявления</Link>
               <span className="header__user">
-                {user.name}
+                <Link to="/profile">{user.name}</Link>
                 {user.role === 'MODERATOR' && (
                   <span className="badge">модератор</span>
                 )}
