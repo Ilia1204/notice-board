@@ -7,6 +7,7 @@ import type { Ad } from '../api/ads';
 import { useFavorites } from '../api/favorites-context';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { FormError } from '../components/FormError';
+import { WriteSellerButton } from '../components/WriteSellerButton';
 
 const dateFormat = new Intl.DateTimeFormat('ru-RU', {
   day: 'numeric',
@@ -123,6 +124,7 @@ export function AdPage() {
             Опубликовано {dateFormat.format(new Date(ad.createdAt))}
           </p>
           <div className="ad-page__actions">
+            <WriteSellerButton ad={ad} onError={setActionError} />
             <FavoriteButton ad={ad} withText />
             {user?.id === ad.author.id && (
               <>

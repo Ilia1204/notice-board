@@ -19,6 +19,7 @@ export function Header() {
                   <Link to="/categories">Категории</Link>
                 </>
               )}
+              <Link to="/chats">Сообщения</Link>
               <Link to="/favorites">Избранное</Link>
               <Link to="/my-ads">Мои объявления</Link>
               <span className="header__user">
