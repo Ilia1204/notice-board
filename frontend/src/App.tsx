@@ -5,6 +5,8 @@ import { Header } from './components/Header';
 import { RequireRole } from './components/RequireRole';
 import { AdPage } from './pages/AdPage';
 import { CategoriesPage } from './pages/CategoriesPage';
+import { ChatPage } from './pages/ChatPage';
+import { ChatsPage } from './pages/ChatsPage';
 import { EditAdPage } from './pages/EditAdPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { HomePage } from './pages/HomePage';
@@ -56,6 +58,22 @@ function App() {
               element={
                 <RequireRole>
                   <FavoritesPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/chats"
+              element={
+                <RequireRole>
+                  <ChatsPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/chats/:id"
+              element={
+                <RequireRole>
+                  <ChatPage />
                 </RequireRole>
               }
             />

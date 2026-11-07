@@ -2,7 +2,9 @@ import {
   Prisma,
   type Ad,
   type Category,
+  type Chat,
   type Favorite,
+  type Message,
   type User,
 } from '@prisma/client';
 
@@ -26,6 +28,8 @@ type AdWhere = Partial<Pick<Ad, 'status' | 'categoryId' | 'authorId'>> & {
 };
 type AdImageRow = { id: number; filename: string; position: number };
 type FavoriteKey = Pick<Favorite, 'userId' | 'adId'>;
+type ChatKey = Pick<Chat, 'adId' | 'buyerId'>;
+type ChatWhere = { OR: [{ buyerId: number }, ...unknown[]] };
 
 // Простая замена PrismaService в памяти для интеграционных тестов
 export function createPrismaFake() {
@@ -34,9 +38,14 @@ export function createPrismaFake() {
   const ads: Ad[] = [];
   const adImages = new Map<number, AdImageRow[]>();
   const favorites: Favorite[] = [];
+  const chats: Chat[] = [];
+  const messages: Message[] = [];
+  // Порядок изменения диалогов: созданные в одну миллисекунду не перепутаются
+  const touched = new Map<number, number>();
   let nextCategoryId = 1;
   let nextAdId = 1;
   let nextImageId = 1;
+  let nextTouch = 1;
 
   const withRelations = (ad: Ad) => {
     const category = categories.find((c) => c.id === ad.categoryId);
@@ -57,6 +66,27 @@ export function createPrismaFake() {
     const ad = ads.find((a) => a.id === id);
     if (!ad) throw knownError('P2025');
     return ad;
+  };
+
+  const userRef = (id: number) => ({
+    id,
+    name: users.find((u) => u.id === id)?.name ?? '',
+  });
+  const authorOf = (chat: Chat) => findAd(chat.adId).authorId;
+  // Как chatInclude в ChatsService: объявление с автором, покупатель и последнее сообщение
+  const chatView = (chat: Chat) => {
+    const ad = findAd(chat.adId);
+    const last = messages.filter((m) => m.chatId === chat.id).at(-1);
+    return {
+      ...chat,
+      ad: { id: ad.id, title: ad.title, author: userRef(ad.authorId) },
+      buyer: userRef(chat.buyerId),
+      messages: last ? [last] : [],
+    };
+  };
+  const touch = (chat: Chat, updatedAt: Date) => {
+    chat.updatedAt = updatedAt;
+    touched.set(chat.id, nextTouch++);
   };
 
   const findCategory = (id: number) => {
@@ -266,6 +296,74 @@ export function createPrismaFake() {
         return Promise.resolve({ count: index >= 0 ? 1 : 0 });
       },
     },
+    chat: {
+      findMany: ({ where }: { where: ChatWhere }) => {
+        const userId = where.OR[0].buyerId;
+        return Promise.resolve(
+          chats
+            .filter(
+              (chat) =>
+                (chat.buyerId === userId || authorOf(chat) === userId) &&
+                messages.some((m) => m.chatId === chat.id),
+            )
+            .sort((a, b) => (touched.get(b.id) ?? 0) - (touched.get(a.id) ?? 0))
+            .map(chatView),
+        );
+      },
+      findUnique: ({ where }: { where: Pick<Chat, 'id'> }) => {
+        const chat = chats.find((c) => c.id === where.id);
+        return Promise.resolve(chat ? chatView(chat) : null);
+      },
+      upsert: ({ create }: { create: ChatKey }) => {
+        let chat = chats.find(
+          (c) => c.adId === create.adId && c.buyerId === create.buyerId,
+        );
+        if (!chat) {
+          const now = new Date();
+          chat = {
+            id: chats.length + 1,
+            createdAt: now,
+            updatedAt: now,
+            ...create,
+          };
+          chats.push(chat);
+          touch(chat, now);
+        }
+        return Promise.resolve(chatView(chat));
+      },
+      update: ({
+        where,
+        data,
+      }: {
+        where: Pick<Chat, 'id'>;
+        data: Pick<Chat, 'updatedAt'>;
+      }) =>
+        Promise.resolve().then(() => {
+          const chat = chats.find((c) => c.id === where.id);
+          if (!chat) throw knownError('P2025');
+          touch(chat, data.updatedAt);
+          return chat;
+        }),
+    },
+    message: {
+      // Сообщения лежат по порядку отправки
+      findMany: ({ where }: { where: Pick<Message, 'chatId'> }) =>
+        Promise.resolve(messages.filter((m) => m.chatId === where.chatId)),
+      create: ({
+        data,
+      }: {
+        data: Pick<Message, 'chatId' | 'senderId' | 'text'>;
+      }) => {
+        const message: Message = {
+          id: messages.length + 1,
+          createdAt: new Date(),
+          ...data,
+        };
+        messages.push(message);
+        return Promise.resolve(message);
+      },
+    },
+    $transaction: (operations: Promise<unknown>[]) => Promise.all(operations),
     $disconnect: () => Promise.resolve(),
   };
 }

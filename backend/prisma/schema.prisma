@@ -21,6 +21,8 @@ model User {
   createdAt    DateTime   @default(now()) @map("created_at")
   ads          Ad[]
   favorites    Favorite[]
+  chats        Chat[]
+  messages     Message[]
 
   @@map("users")
 }
@@ -56,6 +58,7 @@ model Ad {
   status      AdStatus   @default(PENDING)
   images      AdImage[]
   favorites   Favorite[]
+  chats       Chat[]
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 
@@ -87,4 +90,34 @@ model Favorite {
   @@id([userId, adId])
   @@index([adId])
   @@map("favorites")
+}
+
+// Диалог покупателя с автором объявления (Т10): по одному объявлению — один диалог
+model Chat {
+  id        Int       @id @default(autoincrement())
+  ad        Ad        @relation(fields: [adId], references: [id], onDelete: Cascade)
+  adId      Int       @map("ad_id")
+  buyer     User      @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  buyerId   Int       @map("buyer_id")
+  messages  Message[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  // Время последнего сообщения: по нему сортируем список диалогов
+  updatedAt DateTime  @default(now()) @map("updated_at")
+
+  @@unique([adId, buyerId])
+  @@index([buyerId])
+  @@map("chats")
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chatId    Int      @map("chat_id")
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId  Int      @map("sender_id")
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([chatId, createdAt])
+  @@map("messages")
 }
