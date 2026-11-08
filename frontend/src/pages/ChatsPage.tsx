@@ -1,22 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../api/auth-context';
 import { chatsApi, formatSentAt } from '../api/chats';
 import type { ChatSummary } from '../api/chats';
+import { useNewMessages } from '../api/socket-context';
 import { FormError } from '../components/FormError';
 
-// Список диалогов (Т10): свежие сверху
+// Список диалогов (Т10): свежие сверху, новое сообщение обновляет список сразу (Т11)
 export function ChatsPage() {
   const { user, token } = useAuth();
   const [chats, setChats] = useState<ChatSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     chatsApi
       .list(token!)
       .then(setChats)
       .catch((e: Error) => setError(e.message));
   }, [token]);
+
+  useEffect(load, [load]);
+  useNewMessages(load);
 
   return (
     <main className="content">

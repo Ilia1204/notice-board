@@ -3,6 +3,7 @@ import { AuthProvider } from './components/AuthProvider';
 import { FavoritesProvider } from './components/FavoritesProvider';
 import { Header } from './components/Header';
 import { RequireRole } from './components/RequireRole';
+import { SocketProvider } from './components/SocketProvider';
 import { AdPage } from './pages/AdPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { ChatPage } from './pages/ChatPage';
@@ -21,89 +22,91 @@ import { RegisterPage } from './pages/RegisterPage';
 function App() {
   return (
     <AuthProvider>
-      <FavoritesProvider>
-        <HashRouter>
-          <Header />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route
-              path="/ads/new"
-              element={
-                <RequireRole>
-                  <NewAdPage />
-                </RequireRole>
-              }
-            />
-            <Route path="/ads/:id" element={<AdPage />} />
-            <Route
-              path="/ads/:id/edit"
-              element={
-                <RequireRole>
-                  <EditAdPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/my-ads"
-              element={
-                <RequireRole>
-                  <MyAdsPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/favorites"
-              element={
-                <RequireRole>
-                  <FavoritesPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/chats"
-              element={
-                <RequireRole>
-                  <ChatsPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/chats/:id"
-              element={
-                <RequireRole>
-                  <ChatPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <RequireRole>
-                  <ProfilePage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/moderation"
-              element={
-                <RequireRole role="MODERATOR">
-                  <ModerationPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/categories"
-              element={
-                <RequireRole role="MODERATOR">
-                  <CategoriesPage />
-                </RequireRole>
-              }
-            />
-          </Routes>
-        </HashRouter>
-      </FavoritesProvider>
+      <SocketProvider>
+        <FavoritesProvider>
+          <HashRouter>
+            <Header />
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route
+                path="/ads/new"
+                element={
+                  <RequireRole>
+                    <NewAdPage />
+                  </RequireRole>
+                }
+              />
+              <Route path="/ads/:id" element={<AdPage />} />
+              <Route
+                path="/ads/:id/edit"
+                element={
+                  <RequireRole>
+                    <EditAdPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/my-ads"
+                element={
+                  <RequireRole>
+                    <MyAdsPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/favorites"
+                element={
+                  <RequireRole>
+                    <FavoritesPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/chats"
+                element={
+                  <RequireRole>
+                    <ChatsPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/chats/:id"
+                element={
+                  <RequireRole>
+                    <ChatPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <RequireRole>
+                    <ProfilePage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/moderation"
+                element={
+                  <RequireRole role="MODERATOR">
+                    <ModerationPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/categories"
+                element={
+                  <RequireRole role="MODERATOR">
+                    <CategoriesPage />
+                  </RequireRole>
+                }
+              />
+            </Routes>
+          </HashRouter>
+        </FavoritesProvider>
+      </SocketProvider>
     </AuthProvider>
   );
 }
