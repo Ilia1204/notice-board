@@ -30,6 +30,12 @@ export interface ChatSummary {
   updatedAt: Date;
 }
 
+// Сохранённое сообщение и кому его доставить: покупателю и автору объявления
+export interface SentMessage {
+  message: Message;
+  memberIds: number[];
+}
+
 const toSummary = (chat: ChatWithRelations, userId: number): ChatSummary => ({
   id: chat.id,
   ad: { id: chat.ad.id, title: chat.ad.title },
@@ -85,8 +91,8 @@ export class ChatsService {
     });
   }
 
-  async send(id: number, userId: number, text: string): Promise<Message> {
-    await this.findOwn(id, userId);
+  async send(id: number, userId: number, text: string): Promise<SentMessage> {
+    const chat = await this.findOwn(id, userId);
     const [message] = await this.prisma.$transaction([
       this.prisma.message.create({
         data: { chatId: id, senderId: userId, text },
@@ -97,7 +103,7 @@ export class ChatsService {
         data: { updatedAt: new Date() },
       }),
     ]);
-    return message;
+    return { message, memberIds: [chat.buyerId, chat.ad.author.id] };
   }
 
   // Чужую переписку читать нельзя
