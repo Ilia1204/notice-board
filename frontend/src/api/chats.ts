@@ -1,4 +1,5 @@
-import { apiRequest } from './client';
+import type { Socket } from 'socket.io-client';
+import { ApiError, apiRequest } from './client';
 
 export interface Message {
   id: number;
@@ -36,6 +37,32 @@ export const chatsApi = {
       token,
     }),
 };
+
+type SendAck = { message: Message } | { error: string };
+
+// Сообщение уходит по WebSocket, а если соединения нет — обычным запросом
+export async function sendMessage(
+  chatId: number,
+  text: string,
+  token: string,
+  socket: Socket | null,
+): Promise<Message> {
+  if (!socket?.connected) return chatsApi.send(chatId, text, token);
+  let ack: SendAck;
+  try {
+    ack = (await socket
+      .timeout(5000)
+      .emitWithAck('message:send', { chatId, text })) as SendAck;
+  } catch {
+    return chatsApi.send(chatId, text, token);
+  }
+  if ('error' in ack) throw new ApiError(400, ack.error);
+  return ack.message;
+}
+
+// Своё сообщение приходит и в ответе, и по WebSocket — второй раз не добавляем
+export const addMessage = (list: Message[], message: Message): Message[] =>
+  list.some((m) => m.id === message.id) ? list : [...list, message];
 
 const timeFormat = new Intl.DateTimeFormat('ru-RU', {
   hour: '2-digit',

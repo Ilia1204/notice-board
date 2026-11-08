@@ -11,6 +11,7 @@ import type { Message } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ChatsGateway } from './chats.gateway';
 import { ChatsService, type ChatSummary } from './chats.service';
 import { OpenChatDto } from './dto/open-chat.dto';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -19,7 +20,10 @@ import { SendMessageDto } from './dto/send-message.dto';
 @Controller('chats')
 @UseGuards(JwtAuthGuard)
 export class ChatsController {
-  constructor(private readonly chatsService: ChatsService) {}
+  constructor(
+    private readonly chatsService: ChatsService,
+    private readonly chatsGateway: ChatsGateway,
+  ) {}
 
   @Get()
   findAll(@CurrentUser() user: JwtPayload): Promise<ChatSummary[]> {
@@ -51,12 +55,15 @@ export class ChatsController {
     return this.chatsService.findMessages(id, user.sub);
   }
 
+  // Резервный путь, если WebSocket недоступен: собеседник всё равно получит сообщение сразу
   @Post(':id/messages')
-  send(
+  async send(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SendMessageDto,
   ): Promise<Message> {
-    return this.chatsService.send(id, user.sub, dto.text);
+    const sent = await this.chatsService.send(id, user.sub, dto.text);
+    this.chatsGateway.deliver(sent);
+    return sent.message;
   }
 }

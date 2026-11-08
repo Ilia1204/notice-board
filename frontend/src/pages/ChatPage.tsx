@@ -1,16 +1,20 @@
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuth } from '../api/auth-context';
-import { chatsApi, formatSentAt } from '../api/chats';
+import { addMessage, chatsApi, formatSentAt, sendMessage } from '../api/chats';
 import type { ChatSummary, Message } from '../api/chats';
+import { useNewMessages, useSocket } from '../api/socket-context';
 import { FormError } from '../components/FormError';
 
-// Диалог (Т10): история переписки и отправка сообщения
+// Диалог (Т10, Т11): история переписки, отправка и приём без перезагрузки
 export function ChatPage() {
   const { id } = useParams();
+  // Номер диалога берём из адреса: подписка готова ещё до загрузки истории
+  const chatId = Number(id);
   const { user, token } = useAuth();
+  const socket = useSocket();
   const [chat, setChat] = useState<ChatSummary | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
@@ -19,7 +23,6 @@ export function ChatPage() {
   const bottom = useRef<HTMLLIElement>(null);
 
   useEffect(() => {
-    const chatId = Number(id);
     Promise.all([
       chatsApi.get(chatId, token!),
       chatsApi.messages(chatId, token!),
@@ -29,7 +32,18 @@ export function ChatPage() {
         setMessages(history);
       })
       .catch((e: Error) => setError(e.message));
-  }, [id, token]);
+  }, [chatId, token]);
+
+  useNewMessages(
+    useCallback(
+      (message: Message) => {
+        if (message.chatId === chatId) {
+          setMessages((current) => addMessage(current, message));
+        }
+      },
+      [chatId],
+    ),
+  );
 
   // Последнее сообщение всегда на виду
   useEffect(() => {
@@ -42,8 +56,8 @@ export function ChatPage() {
     setError(null);
     setPending(true);
     try {
-      const message = await chatsApi.send(chat.id, text, token!);
-      setMessages((current) => [...current, message]);
+      const message = await sendMessage(chat.id, text, token!, socket);
+      setMessages((current) => addMessage(current, message));
       setText('');
     } catch (e) {
       setError((e as Error).message);

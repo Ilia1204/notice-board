@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { uploadDir } from './ads/image-storage.service';
 import { AppModule } from './app.module';
+import { SocketIoAdapter } from './chats/socket-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -12,6 +13,7 @@ async function bootstrap() {
     .split(',')
     .map((origin) => origin.trim());
   app.enableCors({ origin: origins });
+  app.useWebSocketAdapter(new SocketIoAdapter(app, origins));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   // Фото объявлений доступны по адресу /uploads/<имя файла>
   app.useStaticAssets(uploadDir(app.get(ConfigService)), {

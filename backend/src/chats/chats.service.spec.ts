@@ -120,7 +120,10 @@ describe('ChatsService', () => {
   it('сохраняет сообщение и поднимает диалог наверх', async () => {
     prisma.chat.findUnique.mockResolvedValue(chat);
     prisma.message.create.mockResolvedValue(message);
-    await expect(service.send(3, 5, 'Привет')).resolves.toEqual(message);
+    await expect(service.send(3, 5, 'Привет')).resolves.toEqual({
+      message,
+      memberIds: [5, 9],
+    });
     expect(prisma.message.create).toHaveBeenCalledWith({
       data: { chatId: 3, senderId: 5, text: 'Привет' },
     });

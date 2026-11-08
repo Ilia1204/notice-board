@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { formatSentAt } from '../api/chats';
+import { fakeSocket, io, serverEmit } from '../test/fake-socket';
 import { mockApi } from '../test/mock-api';
 
 const user = { id: 2, email: 'ivan@mail.ru', name: 'Иван', role: 'USER' };
@@ -166,5 +167,104 @@ describe('сообщения', () => {
     const now = new Date('2026-11-07T15:00:00');
     expect(formatSentAt('2026-11-07T09:05:00', now)).toBe('09:05');
     expect(formatSentAt('2026-11-05T09:05:00', now)).toMatch(/^5 нояб/);
+  });
+});
+
+describe('сообщения в реальном времени', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  const dialog = () =>
+    open('#/chats/7', {
+      'GET /chats/7': [200, chat],
+      'GET /chats/7/messages': [200, [question]],
+    });
+  const fromServer = (message: unknown) =>
+    act(() => serverEmit('message:new', message));
+
+  it('соединение открывается только после входа', async () => {
+    window.location.hash = '#/';
+    mockApi({});
+    render(<App />);
+    await screen.findByRole('link', { name: 'Войти' });
+    expect(io).not.toHaveBeenCalled();
+
+    dialog();
+    await screen.findByText('Ещё продаёте?');
+    expect(io).toHaveBeenCalledWith('http://localhost:3000', {
+      auth: { token: 'tok' },
+    });
+  });
+
+  it('ответ собеседника появляется без перезагрузки', async () => {
+    dialog();
+    await screen.findByText('Ещё продаёте?');
+    fromServer(answer);
+    fromServer({ ...answer, id: 12, chatId: 8, text: 'Из другого диалога' });
+    expect(screen.getByText('Да, продаю')).toBeInTheDocument();
+    expect(screen.queryByText('Из другого диалога')).toBeNull();
+  });
+
+  it('при соединении отправляет по WebSocket, без дублей', async () => {
+    fakeSocket.connected = true;
+    fakeSocket.emitWithAck.mockResolvedValue({ message: answer });
+    const fetchMock = dialog();
+    const field = await screen.findByRole('textbox', { name: 'Сообщение' });
+    fireEvent.change(field, { target: { value: 'Да, продаю' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }));
+
+    expect(await screen.findByText('Да, продаю')).toBeInTheDocument();
+    fromServer(answer);
+    expect(screen.getAllByText('Да, продаю')).toHaveLength(1);
+    expect(fakeSocket.emitWithAck).toHaveBeenCalledWith('message:send', {
+      chatId: 7,
+      text: 'Да, продаю',
+    });
+    expect(posted(fetchMock)).toEqual([]);
+  });
+
+  it('ошибку с сервера показывает пользователю', async () => {
+    fakeSocket.connected = true;
+    fakeSocket.emitWithAck.mockResolvedValue({ error: 'Это чужой диалог' });
+    dialog();
+    const field = await screen.findByRole('textbox', { name: 'Сообщение' });
+    fireEvent.change(field, { target: { value: 'Привет' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }));
+    expect(await screen.findByText('Это чужой диалог')).toBeInTheDocument();
+    expect(field).toHaveValue('Привет');
+  });
+
+  it('если WebSocket не ответил, отправляет обычным запросом', async () => {
+    fakeSocket.connected = true;
+    fakeSocket.emitWithAck.mockRejectedValue(new Error('timeout'));
+    const fetchMock = open('#/chats/7', {
+      'GET /chats/7': [200, chat],
+      'GET /chats/7/messages': [200, []],
+      'POST /chats/7/messages': [201, answer],
+    });
+    const field = await screen.findByRole('textbox', { name: 'Сообщение' });
+    fireEvent.change(field, { target: { value: 'Да, продаю' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }));
+    expect(await screen.findByText('Да, продаю')).toBeInTheDocument();
+    expect(posted(fetchMock)).toEqual([
+      ['/chats/7/messages', { text: 'Да, продаю' }],
+    ]);
+  });
+
+  it('список диалогов обновляется при новом сообщении', async () => {
+    const fetchMock = open('#/chats', { 'GET /chats': [200, [chat]] });
+    await screen.findByText('Да, продаю');
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify([
+            { ...chat, lastMessage: { ...answer, text: 'Жду' } },
+          ]),
+          { status: 200 },
+        ),
+      ),
+    );
+    fromServer({ ...answer, text: 'Жду' });
+    expect(await screen.findByText('Жду')).toBeInTheDocument();
   });
 });
