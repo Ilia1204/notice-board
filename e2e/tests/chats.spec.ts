@@ -96,3 +96,65 @@ test.describe('Т10. Диалоги и история сообщений', () =>
     await expect(page.getByText('Написать продавцу')).toHaveCount(0);
   });
 });
+
+test.describe('Т11. Чат в реальном времени', () => {
+  test('сообщения доходят до собеседника без перезагрузки', async ({
+    page,
+    browser,
+  }) => {
+    const buyer = uniqueUser();
+    await register(page, buyer);
+    await openAd(page);
+    await page.getByRole('button', { name: 'Написать продавцу' }).click();
+    await sendMessage(page, `Здравствуйте! ${Date.now()}`);
+
+    const sellerContext = await browser.newContext();
+    const seller = await sellerContext.newPage();
+    await loginSeller(seller);
+    await seller.getByRole('link', { name: 'Сообщения' }).click();
+    await seller
+      .getByRole('list', { name: 'Диалоги' })
+      .getByRole('link')
+      .filter({ hasText: buyer.name })
+      .click();
+    const sellerHistory = seller.getByRole('list', { name: 'Сообщения' });
+    await expect(sellerHistory.getByText('Здравствуйте!')).toBeVisible();
+
+    // Оба окна открыты, никто страницу не обновляет
+    await sendMessage(page, 'Когда можно забрать?');
+    await expect(sellerHistory.getByText('Когда можно забрать?')).toBeVisible();
+
+    await sendMessage(seller, 'Сегодня после шести');
+    await expect(
+      page
+        .getByRole('list', { name: 'Сообщения' })
+        .getByText('Сегодня после шести'),
+    ).toBeVisible();
+    await sellerContext.close();
+  });
+
+  test('новый диалог сразу появляется в списке продавца', async ({
+    page,
+    browser,
+  }) => {
+    const sellerContext = await browser.newContext();
+    const seller = await sellerContext.newPage();
+    await loginSeller(seller);
+    await seller.getByRole('link', { name: 'Сообщения' }).click();
+    await expect(
+      seller.getByRole('heading', { name: 'Сообщения' }),
+    ).toBeVisible();
+
+    const buyer = uniqueUser();
+    const question = `Торг уместен? ${Date.now()}`;
+    await register(page, buyer);
+    await openAd(page);
+    await page.getByRole('button', { name: 'Написать продавцу' }).click();
+    await sendMessage(page, question);
+
+    await expect(
+      seller.getByRole('list', { name: 'Диалоги' }).getByRole('link').first(),
+    ).toContainText(question);
+    await sellerContext.close();
+  });
+});
