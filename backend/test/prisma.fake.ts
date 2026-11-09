@@ -30,6 +30,7 @@ type AdImageRow = { id: number; filename: string; position: number };
 type FavoriteKey = Pick<Favorite, 'userId' | 'adId'>;
 type ChatKey = Pick<Chat, 'adId' | 'buyerId'>;
 type ChatWhere = { OR: [{ buyerId: number }, ...unknown[]] };
+type UnreadWhere = Pick<Message, 'readAt'> & { senderId: { not: number } };
 
 // Простая замена PrismaService в памяти для интеграционных тестов
 export function createPrismaFake() {
@@ -84,6 +85,10 @@ export function createPrismaFake() {
       messages: last ? [last] : [],
     };
   };
+  const isMember = (chat: Chat, userId: number) =>
+    chat.buyerId === userId || authorOf(chat) === userId;
+  const isUnread = (m: Message, where: UnreadWhere) =>
+    m.readAt === where.readAt && m.senderId !== where.senderId.not;
   const touch = (chat: Chat, updatedAt: Date) => {
     chat.updatedAt = updatedAt;
     touched.set(chat.id, nextTouch++);
@@ -303,7 +308,7 @@ export function createPrismaFake() {
           chats
             .filter(
               (chat) =>
-                (chat.buyerId === userId || authorOf(chat) === userId) &&
+                isMember(chat, userId) &&
                 messages.some((m) => m.chatId === chat.id),
             )
             .sort((a, b) => (touched.get(b.id) ?? 0) - (touched.get(a.id) ?? 0))
@@ -357,10 +362,55 @@ export function createPrismaFake() {
         const message: Message = {
           id: messages.length + 1,
           createdAt: new Date(),
+          readAt: null,
           ...data,
         };
         messages.push(message);
         return Promise.resolve(message);
+      },
+      groupBy: ({
+        where,
+      }: {
+        where: UnreadWhere & { chatId: { in: number[] } };
+      }) => {
+        const counts = new Map<number, number>();
+        messages
+          .filter(
+            (m) => where.chatId.in.includes(m.chatId) && isUnread(m, where),
+          )
+          .forEach((m) =>
+            counts.set(m.chatId, (counts.get(m.chatId) ?? 0) + 1),
+          );
+        return Promise.resolve(
+          [...counts].map(([chatId, count]) => ({
+            chatId,
+            _count: { _all: count },
+          })),
+        );
+      },
+      count: ({ where }: { where: UnreadWhere }) =>
+        Promise.resolve(
+          messages.filter(
+            (m) =>
+              isUnread(m, where) &&
+              isMember(
+                chats.find((c) => c.id === m.chatId)!,
+                where.senderId.not,
+              ),
+          ).length,
+        ),
+      updateMany: ({
+        where,
+        data,
+      }: {
+        where: UnreadWhere & Pick<Message, 'chatId'>;
+        data: Pick<Message, 'readAt'>;
+      }) => {
+        const found = messages.filter(
+          (m) => m.chatId === where.chatId && isUnread(m, where),
+        );
+        found.forEach((m) => (m.readAt = data.readAt));
+        return Promise.resolve({ count: found.length });
       },
     },
     $transaction: (operations: Promise<unknown>[]) => Promise.all(operations),

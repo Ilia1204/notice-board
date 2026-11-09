@@ -11,6 +11,8 @@ describe('ChatsController', () => {
     findOne: jest.fn(),
     findMessages: jest.fn(),
     send: jest.fn(),
+    unreadCount: jest.fn(),
+    markRead: jest.fn(),
   };
   const gateway = { deliver: jest.fn() };
   const user = { sub: 5, email: 'a@b.c', role: 'USER' as const };
@@ -48,5 +50,13 @@ describe('ChatsController', () => {
       sent.message,
     );
     expect(gateway.deliver).toHaveBeenCalledWith(sent);
+  });
+
+  it('отдаёт счётчик непрочитанных и отмечает диалог прочитанным', async () => {
+    service.unreadCount.mockResolvedValue(4);
+    await expect(controller.unread(user)).resolves.toEqual({ count: 4 });
+    await controller.markRead(user, 3);
+    expect(service.unreadCount).toHaveBeenCalledWith(5);
+    expect(service.markRead).toHaveBeenCalledWith(3, 5);
   });
 });

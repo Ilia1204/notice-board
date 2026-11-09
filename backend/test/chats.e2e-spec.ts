@@ -12,6 +12,7 @@ interface ChatBody {
   ad: { id: number; title: string };
   companion: { id: number; name: string };
   lastMessage: { text: string } | null;
+  unread: number;
 }
 
 describe('Chats (e2e)', () => {
@@ -45,6 +46,16 @@ describe('Chats (e2e)', () => {
       .expect(200);
     return res.body as ChatBody[];
   };
+
+  const unread = async (token: string) => {
+    const res = await server()
+      .get('/chats/unread')
+      .set('Authorization', auth(token))
+      .expect(200);
+    return (res.body as { count: number }).count;
+  };
+  const markRead = (chatId: number, token: string) =>
+    server().post(`/chats/${chatId}/read`).set('Authorization', auth(token));
 
   async function createAd(title: string, status = 'PUBLISHED') {
     const res = await server()
@@ -98,6 +109,8 @@ describe('Chats (e2e)', () => {
     await server().post('/chats').send({ adId: 1 }).expect(401);
     await server().get('/chats/1/messages').expect(401);
     await server().post('/chats/1/messages').send({ text: 'Hi' }).expect(401);
+    await server().get('/chats/unread').expect(401);
+    await server().post('/chats/1/read').expect(401);
   });
 
   it('покупатель пишет автору, история сохраняется', async () => {
@@ -175,5 +188,46 @@ describe('Chats (e2e)', () => {
     const [chat] = await list(buyerToken);
     await send(chat.id, '   ').expect(400);
     await send(chat.id, 'а'.repeat(2001)).expect(400);
+  });
+
+  describe('непрочитанные (Т12)', () => {
+    // Пётр пишет впервые, у Анны уже есть непрочитанные от Ивана
+    let chat: ChatBody;
+    let before: number;
+
+    beforeAll(async () => {
+      before = await unread(sellerToken);
+      const adId = await createAd('Гитара');
+      chat = (await open(adId, otherToken).expect(201)).body as ChatBody;
+      await send(chat.id, 'Здравствуйте', otherToken).expect(201);
+      await send(chat.id, 'Гитара ещё есть?', otherToken).expect(201);
+    });
+
+    it('получатель видит новые сообщения, отправитель — нет', async () => {
+      expect(await unread(sellerToken)).toBe(before + 2);
+      expect(await unread(otherToken)).toBe(0);
+      const forSeller = (await list(sellerToken)).find((c) => c.id === chat.id);
+      expect(forSeller?.unread).toBe(2);
+      expect((await list(otherToken))[0].unread).toBe(0);
+    });
+
+    it('после открытия диалога счётчик уменьшается', async () => {
+      await markRead(chat.id, sellerToken).expect(204);
+      expect(await unread(sellerToken)).toBe(before);
+      const forSeller = (await list(sellerToken)).find((c) => c.id === chat.id);
+      expect(forSeller?.unread).toBe(0);
+    });
+
+    it('ответ продавца — непрочитанный у покупателя', async () => {
+      await send(chat.id, 'Есть', sellerToken).expect(201);
+      expect(await unread(otherToken)).toBe(1);
+      await markRead(chat.id, otherToken).expect(204);
+      expect(await unread(otherToken)).toBe(0);
+    });
+
+    it('чужой диалог прочитанным не отметить', async () => {
+      await markRead(chat.id, buyerToken).expect(403);
+      await markRead(999, buyerToken).expect(404);
+    });
   });
 });
