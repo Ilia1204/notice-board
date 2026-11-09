@@ -6,21 +6,33 @@ import { useAuth } from '../api/auth-context';
 import { addMessage, chatsApi, formatSentAt, sendMessage } from '../api/chats';
 import type { ChatSummary, Message } from '../api/chats';
 import { useNewMessages, useSocket } from '../api/socket-context';
+import { useUnread } from '../api/unread-context';
 import { FormError } from '../components/FormError';
 
-// Диалог (Т10, Т11): история переписки, отправка и приём без перезагрузки
+// Диалог (Т10, Т11, Т12): история переписки, отправка и приём без перезагрузки;
+// всё, что видно на экране, считается прочитанным
 export function ChatPage() {
   const { id } = useParams();
   // Номер диалога берём из адреса: подписка готова ещё до загрузки истории
   const chatId = Number(id);
   const { user, token } = useAuth();
   const socket = useSocket();
+  const { refresh: refreshUnread } = useUnread();
   const [chat, setChat] = useState<ChatSummary | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const bottom = useRef<HTMLLIElement>(null);
+
+  const markRead = useCallback(
+    () =>
+      chatsApi
+        .read(chatId, token!)
+        .then(refreshUnread)
+        .catch(() => undefined),
+    [chatId, token, refreshUnread],
+  );
 
   useEffect(() => {
     Promise.all([
@@ -30,18 +42,19 @@ export function ChatPage() {
       .then(([loaded, history]) => {
         setChat(loaded);
         setMessages(history);
+        void markRead();
       })
       .catch((e: Error) => setError(e.message));
-  }, [chatId, token]);
+  }, [chatId, token, markRead]);
 
   useNewMessages(
     useCallback(
       (message: Message) => {
-        if (message.chatId === chatId) {
-          setMessages((current) => addMessage(current, message));
-        }
+        if (message.chatId !== chatId) return;
+        setMessages((current) => addMessage(current, message));
+        if (message.senderId !== user?.id) void markRead();
       },
-      [chatId],
+      [chatId, user?.id, markRead],
     ),
   );
 

@@ -7,6 +7,7 @@ export interface Message {
   senderId: number;
   text: string;
   createdAt: string;
+  readAt: string | null;
 }
 
 // Собеседник — другая сторона диалога: продавец для покупателя и наоборот
@@ -16,6 +17,8 @@ export interface ChatSummary {
   companion: { id: number; name: string };
   lastMessage: Message | null;
   updatedAt: string;
+  // Непрочитанные сообщения собеседника (Т12)
+  unread: number;
 }
 
 export const chatsApi = {
@@ -30,6 +33,10 @@ export const chatsApi = {
     apiRequest<ChatSummary>(`/chats/${id}`, { token }),
   messages: (id: number, token: string) =>
     apiRequest<Message[]>(`/chats/${id}/messages`, { token }),
+  unread: (token: string) =>
+    apiRequest<{ count: number }>('/chats/unread', { token }),
+  read: (id: number, token: string) =>
+    apiRequest<void>(`/chats/${id}/read`, { method: 'POST', token }),
   send: (id: number, text: string, token: string) =>
     apiRequest<Message>(`/chats/${id}/messages`, {
       method: 'POST',

@@ -107,6 +107,23 @@ h2 {
   font-weight: 600;
 }
 
+.counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  background: var(--peach);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: 2px;
+}
+
 .button-link {
   padding: 0;
   border: 0;
@@ -886,6 +903,20 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+}
+
+.chat-list__meta {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.chat-list__item--unread {
+  box-shadow: inset 4px 0 0 var(--peach);
+}
+
+.chat-list__item--unread .chat-list__last {
+  font-weight: 600;
 }
 
 .chat-list__head time,

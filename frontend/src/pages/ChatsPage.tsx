@@ -6,7 +6,8 @@ import type { ChatSummary } from '../api/chats';
 import { useNewMessages } from '../api/socket-context';
 import { FormError } from '../components/FormError';
 
-// Список диалогов (Т10): свежие сверху, новое сообщение обновляет список сразу (Т11)
+// Список диалогов (Т10): свежие сверху, новое сообщение обновляет список сразу (Т11),
+// диалоги с непрочитанными выделены (Т12)
 export function ChatsPage() {
   const { user, token } = useAuth();
   const [chats, setChats] = useState<ChatSummary[] | null>(null);
@@ -30,14 +31,28 @@ export function ChatsPage() {
         <ul className="chat-list" aria-label="Диалоги">
           {chats.map((chat) => (
             <li key={chat.id}>
-              <Link to={`/chats/${chat.id}`} className="chat-list__item">
+              <Link
+                to={`/chats/${chat.id}`}
+                className={
+                  chat.unread > 0
+                    ? 'chat-list__item chat-list__item--unread'
+                    : 'chat-list__item'
+                }
+              >
                 <span className="chat-list__head">
                   <strong>{chat.companion.name}</strong>
-                  {chat.lastMessage && (
-                    <time dateTime={chat.lastMessage.createdAt}>
-                      {formatSentAt(chat.lastMessage.createdAt)}
-                    </time>
-                  )}
+                  <span className="chat-list__meta">
+                    {chat.lastMessage && (
+                      <time dateTime={chat.lastMessage.createdAt}>
+                        {formatSentAt(chat.lastMessage.createdAt)}
+                      </time>
+                    )}
+                    {chat.unread > 0 && (
+                      <span className="counter" title="Непрочитанные сообщения">
+                        {chat.unread}
+                      </span>
+                    )}
+                  </span>
                 </span>
                 <span className="chat-list__ad">{chat.ad.title}</span>
                 <span className="chat-list__last">
