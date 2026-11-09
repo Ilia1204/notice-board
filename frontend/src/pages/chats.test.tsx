@@ -31,6 +31,7 @@ const chat = {
   companion: { id: 5, name: 'Анна' },
   lastMessage: answer,
   updatedAt: answer.createdAt,
+  unread: 0,
 };
 
 function open(hash: string, routes = {}) {
@@ -41,9 +42,10 @@ function open(hash: string, routes = {}) {
   return fetchMock;
 }
 
+// Отметка о прочтении уходит без тела — её проверяем отдельно
 const posted = (fetchMock: ReturnType<typeof mockApi>) =>
   fetchMock.mock.calls
-    .filter(([, init]) => init?.method === 'POST')
+    .filter(([, init]) => init?.method === 'POST' && init.body !== undefined)
     .map(([url, init]) => [
       url.replace('http://localhost:3000', ''),
       JSON.parse(String(init?.body)) as unknown,
@@ -266,5 +268,111 @@ describe('сообщения в реальном времени', () => {
     );
     fromServer({ ...answer, text: 'Жду' });
     expect(await screen.findByText('Жду')).toBeInTheDocument();
+  });
+});
+
+describe('непрочитанные сообщения', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  const counterLink = () =>
+    screen.findByRole('link', { name: /^Сообщения, непрочитанных/ });
+  const readCalls = (fetchMock: ReturnType<typeof mockApi>) =>
+    fetchMock.mock.calls
+      .filter(([url, init]) => init?.method === 'POST' && url.endsWith('/read'))
+      .map(([url]) => url.replace('http://localhost:3000', ''));
+  // Сервер в миниатюре: счётчик можно менять, отметка о прочтении его обнуляет
+  const serverUnread = (fetchMock: ReturnType<typeof mockApi>, count = 0) => {
+    const state = { count };
+    const original = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith('/read')) state.count = 0;
+      return url.endsWith('/chats/unread')
+        ? Promise.resolve(new Response(JSON.stringify({ count: state.count })))
+        : original(url, init);
+    });
+    return state;
+  };
+
+  it('в шапке видно число непрочитанных', async () => {
+    open('#/', { 'GET /chats/unread': [200, { count: 3 }] });
+    const link = await counterLink();
+    expect(link).toHaveAttribute('href', '#/chats');
+    expect(link).toHaveTextContent('Сообщения3');
+  });
+
+  it('без непрочитанных значка нет', async () => {
+    open('#/');
+    const link = await screen.findByRole('link', { name: 'Сообщения' });
+    expect(link.querySelector('.counter')).toBeNull();
+  });
+
+  it('сообщение собеседника увеличивает счётчик без перезагрузки', async () => {
+    const fetchMock = open('#/');
+    await screen.findByRole('link', { name: 'Сообщения' });
+    serverUnread(fetchMock).count = 1;
+    act(() => serverEmit('message:new', answer));
+    expect(await counterLink()).toHaveTextContent('1');
+  });
+
+  it('своё сообщение счётчик не трогает', async () => {
+    const fetchMock = open('#/');
+    await screen.findByRole('link', { name: 'Сообщения' });
+    const before = fetchMock.mock.calls.length;
+    act(() => serverEmit('message:new', question));
+    expect(fetchMock.mock.calls.length).toBe(before);
+  });
+
+  it('в списке выделены диалоги с непрочитанными', async () => {
+    open('#/chats', {
+      'GET /chats': [
+        200,
+        [
+          { ...chat, unread: 2 },
+          { ...chat, id: 8 },
+        ],
+      ],
+    });
+    const list = await screen.findByRole('list', { name: 'Диалоги' });
+    const [first, second] = within(list).getAllByRole('link');
+    expect(first).toHaveClass('chat-list__item--unread');
+    expect(
+      within(first).getByTitle('Непрочитанные сообщения'),
+    ).toHaveTextContent('2');
+    expect(second).not.toHaveClass('chat-list__item--unread');
+    expect(within(second).queryByTitle('Непрочитанные сообщения')).toBeNull();
+  });
+
+  it('открытый диалог отмечается прочитанным, значок пропадает', async () => {
+    // Первый запрос счётчика видит 2 непрочитанных, после отметки — 0
+    const fetchMock = open('#/chats/7', {
+      'GET /chats/7': [200, chat],
+      'GET /chats/7/messages': [200, [question, answer]],
+      'GET /chats/unread': [200, { count: 2 }],
+    });
+    serverUnread(fetchMock, 2);
+    expect(await counterLink()).toHaveTextContent('2');
+    await vi.waitFor(() =>
+      expect(readCalls(fetchMock)).toEqual(['/chats/7/read']),
+    );
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole('link', { name: 'Сообщения' }),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it('новое сообщение в открытом диалоге сразу прочитано', async () => {
+    const fetchMock = open('#/chats/7', {
+      'GET /chats/7': [200, chat],
+      'GET /chats/7/messages': [200, [question]],
+    });
+    await screen.findByText('Ещё продаёте?');
+    await vi.waitFor(() => expect(readCalls(fetchMock)).toHaveLength(1));
+    act(() => serverEmit('message:new', answer));
+    await vi.waitFor(() => expect(readCalls(fetchMock)).toHaveLength(2));
+    act(() => serverEmit('message:new', { ...answer, id: 12, chatId: 8 }));
+    act(() => serverEmit('message:new', { ...question, id: 13 }));
+    expect(readCalls(fetchMock)).toHaveLength(2);
   });
 });

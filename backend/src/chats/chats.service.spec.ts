@@ -17,7 +17,13 @@ describe('ChatsService', () => {
       upsert: jest.fn(),
       update: jest.fn(),
     },
-    message: { findMany: jest.fn(), create: jest.fn() },
+    message: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      groupBy: jest.fn(),
+      count: jest.fn(),
+      updateMany: jest.fn(),
+    },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
 
@@ -35,6 +41,7 @@ describe('ChatsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.message.groupBy.mockResolvedValue([]);
     const moduleRef = await Test.createTestingModule({
       providers: [ChatsService, { provide: PrismaService, useValue: prisma }],
     }).compile();
@@ -50,6 +57,7 @@ describe('ChatsService', () => {
       companion: { id: 9, name: 'Анна' },
       lastMessage: message,
       updatedAt: chat.updatedAt,
+      unread: 0,
     });
     const [forSeller] = await service.findAll(9);
     expect(forSeller.companion).toEqual({ id: 5, name: 'Иван' });
@@ -131,5 +139,46 @@ describe('ChatsService', () => {
       where: { id: 3 },
       data: { updatedAt: expect.any(Date) as Date },
     });
+  });
+
+  it('считает непрочитанные сообщения собеседника в каждом диалоге', async () => {
+    prisma.chat.findMany.mockResolvedValue([chat, { ...chat, id: 4 }]);
+    prisma.message.groupBy.mockResolvedValue([
+      { chatId: 4, _count: { _all: 2 } },
+    ]);
+    const [first, second] = await service.findAll(9);
+    expect([first.unread, second.unread]).toEqual([0, 2]);
+    expect(prisma.message.groupBy).toHaveBeenCalledWith({
+      by: ['chatId'],
+      where: { chatId: { in: [3, 4] }, readAt: null, senderId: { not: 9 } },
+      _count: { _all: true },
+    });
+  });
+
+  it('общий счётчик берёт только диалоги пользователя', async () => {
+    prisma.message.count.mockResolvedValue(3);
+    await expect(service.unreadCount(9)).resolves.toBe(3);
+    expect(prisma.message.count).toHaveBeenCalledWith({
+      where: {
+        readAt: null,
+        senderId: { not: 9 },
+        chat: { OR: [{ buyerId: 9 }, { ad: { authorId: 9 } }] },
+      },
+    });
+  });
+
+  it('открытый диалог отмечается прочитанным, свои сообщения не трогает', async () => {
+    prisma.chat.findUnique.mockResolvedValue(chat);
+    await service.markRead(3, 9);
+    expect(prisma.message.updateMany).toHaveBeenCalledWith({
+      where: { chatId: 3, readAt: null, senderId: { not: 9 } },
+      data: { readAt: expect.any(Date) as Date },
+    });
+  });
+
+  it('чужой диалог прочитанным не отметить', async () => {
+    prisma.chat.findUnique.mockResolvedValue(chat);
+    await expect(service.markRead(3, 42)).rejects.toThrow(ForbiddenException);
+    expect(prisma.message.updateMany).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Post,
@@ -28,6 +30,12 @@ export class ChatsController {
   @Get()
   findAll(@CurrentUser() user: JwtPayload): Promise<ChatSummary[]> {
     return this.chatsService.findAll(user.sub);
+  }
+
+  // Объявлен раньше ':id', иначе «unread» примется за номер диалога
+  @Get('unread')
+  async unread(@CurrentUser() user: JwtPayload): Promise<{ count: number }> {
+    return { count: await this.chatsService.unreadCount(user.sub) };
   }
 
   // Покупатель открывает диалог с автором объявления
@@ -65,5 +73,14 @@ export class ChatsController {
     const sent = await this.chatsService.send(id, user.sub, dto.text);
     this.chatsGateway.deliver(sent);
     return sent.message;
+  }
+
+  @Post(':id/read')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  markRead(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<void> {
+    return this.chatsService.markRead(id, user.sub);
   }
 }

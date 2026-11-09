@@ -110,13 +110,15 @@ model Chat {
 }
 
 model Message {
-  id        Int      @id @default(autoincrement())
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  chatId    Int      @map("chat_id")
-  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  senderId  Int      @map("sender_id")
+  id        Int       @id @default(autoincrement())
+  chat      Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chatId    Int       @map("chat_id")
+  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId  Int       @map("sender_id")
   text      String
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  // Когда получатель открыл диалог (Т12); null — сообщение ещё не прочитано
+  readAt    DateTime? @map("read_at")
 
   @@index([chatId, createdAt])
   @@map("messages")

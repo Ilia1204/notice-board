@@ -1,8 +1,10 @@
 import { Link } from 'react-router';
 import { useAuth } from '../api/auth-context';
+import { useUnread } from '../api/unread-context';
 
 export function Header() {
   const { user, logout } = useAuth();
+  const { count } = useUnread();
 
   return (
     <header className="header">
@@ -19,7 +21,19 @@ export function Header() {
                   <Link to="/categories">Категории</Link>
                 </>
               )}
-              <Link to="/chats">Сообщения</Link>
+              <Link
+                to="/chats"
+                aria-label={
+                  count > 0 ? `Сообщения, непрочитанных: ${count}` : undefined
+                }
+              >
+                Сообщения
+                {count > 0 && (
+                  <span className="counter" aria-hidden>
+                    {count}
+                  </span>
+                )}
+              </Link>
               <Link to="/favorites">Избранное</Link>
               <Link to="/my-ads">Мои объявления</Link>
               <span className="header__user">

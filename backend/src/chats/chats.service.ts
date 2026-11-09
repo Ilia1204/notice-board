@@ -28,6 +28,8 @@ export interface ChatSummary {
   companion: { id: number; name: string };
   lastMessage: Message | null;
   updatedAt: Date;
+  // Сколько сообщений собеседника ещё не прочитано (Т12)
+  unread: number;
 }
 
 // Сохранённое сообщение и кому его доставить: покупателю и автору объявления
@@ -36,13 +38,25 @@ export interface SentMessage {
   memberIds: number[];
 }
 
-const toSummary = (chat: ChatWithRelations, userId: number): ChatSummary => ({
+const toSummary = (
+  chat: ChatWithRelations,
+  userId: number,
+  unread = 0,
+): ChatSummary => ({
   id: chat.id,
   ad: { id: chat.ad.id, title: chat.ad.title },
   companion: chat.buyerId === userId ? chat.ad.author : chat.buyer,
   lastMessage: chat.messages[0] ?? null,
   updatedAt: chat.updatedAt,
+  unread,
 });
+
+// Непрочитанные — это сообщения собеседника без отметки о прочтении
+const unreadFor = (userId: number) =>
+  ({
+    readAt: null,
+    senderId: { not: userId },
+  }) satisfies Prisma.MessageWhereInput;
 
 @Injectable()
 export class ChatsService {
@@ -58,7 +72,26 @@ export class ChatsService {
       include: chatInclude,
       orderBy: { updatedAt: 'desc' },
     });
-    return chats.map((chat) => toSummary(chat, userId));
+    const counts = await this.prisma.message.groupBy({
+      by: ['chatId'],
+      where: {
+        chatId: { in: chats.map((chat) => chat.id) },
+        ...unreadFor(userId),
+      },
+      _count: { _all: true },
+    });
+    const unread = new Map(counts.map((c) => [c.chatId, c._count._all]));
+    return chats.map((chat) => toSummary(chat, userId, unread.get(chat.id)));
+  }
+
+  // Число для значка в шапке: непрочитанные во всех диалогах пользователя
+  unreadCount(userId: number): Promise<number> {
+    return this.prisma.message.count({
+      where: {
+        ...unreadFor(userId),
+        chat: { OR: [{ buyerId: userId }, { ad: { authorId: userId } }] },
+      },
+    });
   }
 
   // Повторное открытие возвращает уже начатый диалог
@@ -104,6 +137,15 @@ export class ChatsService {
       }),
     ]);
     return { message, memberIds: [chat.buyerId, chat.ad.author.id] };
+  }
+
+  // Открыл диалог — прочитал всё, что прислал собеседник
+  async markRead(id: number, userId: number): Promise<void> {
+    await this.findOwn(id, userId);
+    await this.prisma.message.updateMany({
+      where: { chatId: id, ...unreadFor(userId) },
+      data: { readAt: new Date() },
+    });
   }
 
   // Чужую переписку читать нельзя

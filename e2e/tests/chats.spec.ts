@@ -158,3 +158,57 @@ test.describe('Т11. Чат в реальном времени', () => {
     await sellerContext.close();
   });
 });
+
+test.describe('Т12. Уведомления о новых сообщениях', () => {
+  test('ответ продавца виден в шапке и пропадает после прочтения', async ({
+    page,
+    browser,
+  }) => {
+    const buyer = uniqueUser();
+    await register(page, buyer);
+    await openAd(page);
+    await page.getByRole('button', { name: 'Написать продавцу' }).click();
+    await sendMessage(page, `Можно посмотреть? ${Date.now()}`);
+    // Покупатель ушёл на главную, диалог у него закрыт
+    await page.goto('/');
+    const messagesLink = page.getByRole('link', { name: 'Сообщения' });
+    await expect(messagesLink).not.toContainText(/\d/);
+
+    // У продавца диалог выделен, пока он его не открыл
+    const sellerContext = await browser.newContext();
+    const seller = await sellerContext.newPage();
+    await loginSeller(seller);
+    await seller.getByRole('link', { name: 'Сообщения' }).click();
+    const sellerChat = seller
+      .getByRole('list', { name: 'Диалоги' })
+      .getByRole('link')
+      .filter({ hasText: buyer.name });
+    await expect(sellerChat).toHaveClass(/chat-list__item--unread/);
+    await expect(sellerChat.getByTitle('Непрочитанные сообщения')).toHaveText(
+      '1',
+    );
+    await sellerChat.click();
+    await sendMessage(seller, 'Да, приезжайте');
+
+    // Без перезагрузки у покупателя появляется значок
+    await expect(
+      page.getByRole('link', { name: 'Сообщения, непрочитанных: 1' }),
+    ).toBeVisible();
+    await messagesLink.click();
+    const buyerChat = page
+      .getByRole('list', { name: 'Диалоги' })
+      .getByRole('link')
+      .first();
+    await expect(buyerChat).toHaveClass(/chat-list__item--unread/);
+    await buyerChat.click();
+    await expect(page.getByText('Да, приезжайте')).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Сообщения', exact: true }),
+    ).toBeVisible();
+
+    // У продавца диалог тоже прочитан
+    await seller.getByRole('link', { name: 'Все диалоги' }).click();
+    await expect(sellerChat).not.toHaveClass(/chat-list__item--unread/);
+    await sellerContext.close();
+  });
+});
