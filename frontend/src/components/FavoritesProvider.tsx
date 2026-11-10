@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Ad } from '../api/ads';
 import { useAuth } from '../api/auth-context';
@@ -17,6 +17,8 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  // Растёт при каждом изменении: список, запрошенный раньше, уже устарел
+  const version = useRef(0);
 
   const ads = token && loaded?.token === token ? loaded.ads : null;
   const error = token ? failure : null;
@@ -24,8 +26,10 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     if (!token) return;
     setFailure(null);
+    const started = version.current;
     try {
-      setLoaded({ token, ads: await favoritesApi.list(token) });
+      const list = await favoritesApi.list(token);
+      if (version.current === started) setLoaded({ token, ads: list });
     } catch (e) {
       setFailure((e as Error).message);
     }
@@ -48,6 +52,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       try {
         if (added) await favoritesApi.add(ad.id, token);
         else await favoritesApi.remove(ad.id, token);
+        version.current += 1;
         setLoaded((prev) => {
           const rest = (prev?.ads ?? []).filter((item) => item.id !== ad.id);
           return { token, ads: added ? [ad, ...rest] : rest };

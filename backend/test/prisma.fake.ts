@@ -3,6 +3,7 @@ import {
   type Ad,
   type Category,
   type Chat,
+  type Complaint,
   type Favorite,
   type Message,
   type User,
@@ -31,6 +32,12 @@ type FavoriteKey = Pick<Favorite, 'userId' | 'adId'>;
 type ChatKey = Pick<Chat, 'adId' | 'buyerId'>;
 type ChatWhere = { OR: [{ buyerId: number }, ...unknown[]] };
 type UnreadWhere = Pick<Message, 'readAt'> & { senderId: { not: number } };
+type ComplaintData = Pick<Complaint, 'reporterId' | 'reason' | 'comment'> &
+  Partial<Pick<Complaint, 'adId' | 'userId'>>;
+
+// Условие из одних точных равенств: { authorId: 9, status: 'PUBLISHED' }
+const matches = <T extends object>(row: T, where: Partial<T>) =>
+  Object.entries(where).every(([key, value]) => row[key as keyof T] === value);
 
 // Простая замена PrismaService в памяти для интеграционных тестов
 export function createPrismaFake() {
@@ -41,6 +48,7 @@ export function createPrismaFake() {
   const favorites: Favorite[] = [];
   const chats: Chat[] = [];
   const messages: Message[] = [];
+  const complaints: Complaint[] = [];
   // Порядок изменения диалогов: созданные в одну миллисекунду не перепутаются
   const touched = new Map<number, number>();
   let nextCategoryId = 1;
@@ -92,6 +100,24 @@ export function createPrismaFake() {
   const touch = (chat: Chat, updatedAt: Date) => {
     chat.updatedAt = updatedAt;
     touched.set(chat.id, nextTouch++);
+  };
+
+  // Как complaintInclude в ComplaintsService
+  const complaintView = (complaint: Complaint) => {
+    const ad = ads.find((a) => a.id === complaint.adId);
+    return {
+      ...complaint,
+      reporter: userRef(complaint.reporterId),
+      ad: ad
+        ? {
+            id: ad.id,
+            title: ad.title,
+            status: ad.status,
+            author: userRef(ad.authorId),
+          }
+        : null,
+      user: complaint.userId === null ? null : userRef(complaint.userId),
+    };
   };
 
   const findCategory = (id: number) => {
@@ -256,6 +282,17 @@ export function createPrismaFake() {
           }
           return withRelations(ad);
         }),
+      updateMany: ({
+        where,
+        data,
+      }: {
+        where: Partial<Pick<Ad, 'id' | 'authorId' | 'status'>>;
+        data: Pick<Ad, 'status'>;
+      }) => {
+        const found = ads.filter((ad) => matches(ad, where));
+        found.forEach((ad) => Object.assign(ad, data));
+        return Promise.resolve({ count: found.length });
+      },
       delete: ({ where }: { where: Pick<Ad, 'id'> }) =>
         Promise.resolve().then(() => {
           const ad = findAd(where.id);
@@ -410,6 +447,41 @@ export function createPrismaFake() {
           (m) => m.chatId === where.chatId && isUnread(m, where),
         );
         found.forEach((m) => (m.readAt = data.readAt));
+        return Promise.resolve({ count: found.length });
+      },
+    },
+    complaint: {
+      findFirst: ({ where }: { where: Partial<Complaint> }) =>
+        Promise.resolve(complaints.find((c) => matches(c, where)) ?? null),
+      findUnique: ({ where }: { where: Pick<Complaint, 'id'> }) =>
+        Promise.resolve(complaints.find((c) => c.id === where.id) ?? null),
+      // Жалобы лежат по порядку подачи: давние — с начала
+      findMany: ({ where }: { where: Pick<Complaint, 'status'> }) =>
+        Promise.resolve(
+          complaints.filter((c) => matches(c, where)).map(complaintView),
+        ),
+      create: ({ data }: { data: ComplaintData }) => {
+        const complaint: Complaint = {
+          id: complaints.length + 1,
+          status: 'OPEN',
+          createdAt: new Date(),
+          resolvedAt: null,
+          ...data,
+          adId: data.adId ?? null,
+          userId: data.userId ?? null,
+        };
+        complaints.push(complaint);
+        return Promise.resolve(complaintView(complaint));
+      },
+      updateMany: ({
+        where,
+        data,
+      }: {
+        where: Partial<Complaint>;
+        data: Pick<Complaint, 'status' | 'resolvedAt'>;
+      }) => {
+        const found = complaints.filter((c) => matches(c, where));
+        found.forEach((c) => Object.assign(c, data));
         return Promise.resolve({ count: found.length });
       },
     },

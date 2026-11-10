@@ -18,6 +18,7 @@ export function Header() {
               {user.role === 'MODERATOR' && (
                 <>
                   <Link to="/moderation">Модерация</Link>
+                  <Link to="/complaints">Жалобы</Link>
                   <Link to="/categories">Категории</Link>
                 </>
               )}

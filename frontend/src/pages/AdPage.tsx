@@ -7,6 +7,7 @@ import type { Ad } from '../api/ads';
 import { useFavorites } from '../api/favorites-context';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { FormError } from '../components/FormError';
+import { ReportAd } from '../components/ReportAd';
 import { WriteSellerButton } from '../components/WriteSellerButton';
 
 const dateFormat = new Intl.DateTimeFormat('ru-RU', {
@@ -151,6 +152,7 @@ export function AdPage() {
             )}
           </div>
           <FormError message={actionError ?? favoritesError} />
+          <ReportAd key={ad.id} ad={ad} />
         </div>
       </article>
     </main>

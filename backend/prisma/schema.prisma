@@ -13,16 +13,19 @@ enum Role {
 }
 
 model User {
-  id           Int        @id @default(autoincrement())
-  email        String     @unique
-  passwordHash String     @map("password_hash")
+  id           Int         @id @default(autoincrement())
+  email        String      @unique
+  passwordHash String      @map("password_hash")
   name         String
-  role         Role       @default(USER)
-  createdAt    DateTime   @default(now()) @map("created_at")
+  role         Role        @default(USER)
+  createdAt    DateTime    @default(now()) @map("created_at")
   ads          Ad[]
   favorites    Favorite[]
   chats        Chat[]
   messages     Message[]
+  // Жалобы, которые подал пользователь, и жалобы на него самого (Т13)
+  complaints   Complaint[] @relation("ComplaintReporter")
+  reportedIn   Complaint[] @relation("ComplaintTarget")
 
   @@map("users")
 }
@@ -45,22 +48,23 @@ enum AdStatus {
 }
 
 model Ad {
-  id          Int        @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   title       String
   description String
   // Цена в рублях; null — «договорная»
   price       Int?
   // Категорию с объявлениями удалить нельзя
-  category    Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  categoryId  Int        @map("category_id")
-  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId    Int        @map("author_id")
-  status      AdStatus   @default(PENDING)
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  categoryId  Int         @map("category_id")
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    Int         @map("author_id")
+  status      AdStatus    @default(PENDING)
   images      AdImage[]
   favorites   Favorite[]
   chats       Chat[]
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
+  complaints  Complaint[]
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
 
   @@index([categoryId])
   @@index([authorId])
@@ -122,4 +126,40 @@ model Message {
 
   @@index([chatId, createdAt])
   @@map("messages")
+}
+
+enum ComplaintReason {
+  SPAM
+  FRAUD
+  PROHIBITED
+  OFFENSIVE
+  OTHER
+}
+
+// Принятая жалоба скрывает объявление или все объявления пользователя
+enum ComplaintStatus {
+  OPEN
+  ACCEPTED
+  DISMISSED
+}
+
+// Жалоба (Т13): на объявление или на пользователя — заполнено ровно одно из adId и userId
+model Complaint {
+  id         Int             @id @default(autoincrement())
+  reporter   User            @relation("ComplaintReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporterId Int             @map("reporter_id")
+  ad         Ad?             @relation(fields: [adId], references: [id], onDelete: Cascade)
+  adId       Int?            @map("ad_id")
+  user       User?           @relation("ComplaintTarget", fields: [userId], references: [id], onDelete: Cascade)
+  userId     Int?            @map("user_id")
+  reason     ComplaintReason
+  comment    String?
+  status     ComplaintStatus @default(OPEN)
+  createdAt  DateTime        @default(now()) @map("created_at")
+  resolvedAt DateTime?       @map("resolved_at")
+
+  @@index([status, createdAt])
+  @@index([adId])
+  @@index([userId])
+  @@map("complaints")
 }
