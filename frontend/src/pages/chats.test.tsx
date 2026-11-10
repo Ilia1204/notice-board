@@ -140,7 +140,8 @@ describe('сообщения', () => {
 
     fireEvent.keyDown(field, { key: 'Enter' });
     expect(await screen.findByText('Да, продаю')).toBeInTheDocument();
-    expect(field).toHaveValue('');
+    // Своё сообщение может прийти по сокету раньше ответа на отправку
+    await vi.waitFor(() => expect(field).toHaveValue(''));
     expect(posted(fetchMock)).toEqual([
       ['/chats/7/messages', { text: 'Да, продаю' }],
     ]);
@@ -317,10 +318,15 @@ describe('непрочитанные сообщения', () => {
 
   it('своё сообщение счётчик не трогает', async () => {
     const fetchMock = open('#/');
+    const unreadCalls = () =>
+      fetchMock.mock.calls.filter(([url]) => url.endsWith('/chats/unread'))
+        .length;
     await screen.findByRole('link', { name: 'Сообщения' });
-    const before = fetchMock.mock.calls.length;
+    await vi.waitFor(() => expect(unreadCalls()).toBe(1));
+    // Подписка обновляется в эффекте после входа — даём React его выполнить
+    await act(() => Promise.resolve());
     act(() => serverEmit('message:new', question));
-    expect(fetchMock.mock.calls.length).toBe(before);
+    expect(unreadCalls()).toBe(1);
   });
 
   it('в списке выделены диалоги с непрочитанными', async () => {
@@ -351,7 +357,17 @@ describe('непрочитанные сообщения', () => {
       'GET /chats/unread': [200, { count: 2 }],
     });
     serverUnread(fetchMock, 2);
+    // Отметку придерживаем, пока значок не покажет 2, иначе она может его опередить
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const server = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      url.endsWith('/read')
+        ? gate.then(() => server(url, init))
+        : server(url, init),
+    );
     expect(await counterLink()).toHaveTextContent('2');
+    release();
     await vi.waitFor(() =>
       expect(readCalls(fetchMock)).toEqual(['/chats/7/read']),
     );

@@ -9,6 +9,7 @@ import { AdPage } from './pages/AdPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { ChatPage } from './pages/ChatPage';
 import { ChatsPage } from './pages/ChatsPage';
+import { ComplaintsPage } from './pages/ComplaintsPage';
 import { EditAdPage } from './pages/EditAdPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { HomePage } from './pages/HomePage';
@@ -94,6 +95,14 @@ function App() {
                   element={
                     <RequireRole role="MODERATOR">
                       <ModerationPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/complaints"
+                  element={
+                    <RequireRole role="MODERATOR">
+                      <ComplaintsPage />
                     </RequireRole>
                   }
                 />
