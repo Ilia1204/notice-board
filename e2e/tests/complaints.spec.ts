@@ -70,7 +70,9 @@ test.describe('Т13. Жалобы на объявления и пользова�
   }) => {
     await page.goto('/');
     await page.getByRole('link', { name: /Велосипед Stels Navigator/ }).click();
-    await expect(page.getByRole('heading', { level: 2 })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Велосипед Stels Navigator' }),
+    ).toBeVisible();
     await expect(
       page.getByRole('button', { name: /Пожаловаться/ }),
     ).toBeHidden();
