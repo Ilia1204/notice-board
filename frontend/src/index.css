@@ -261,7 +261,7 @@ h2 {
 /* Список объявлений */
 .ad-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
   margin: 28px 0 0;
   padding: 0;
