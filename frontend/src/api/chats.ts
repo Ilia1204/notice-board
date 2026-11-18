@@ -87,3 +87,21 @@ export function formatSentAt(value: string, now = new Date()): string {
     ? timeFormat.format(date)
     : dayFormat.format(date);
 }
+
+export const formatTime = (value: string): string =>
+  timeFormat.format(new Date(value));
+
+const longDayFormat = new Intl.DateTimeFormat('ru-RU', {
+  day: 'numeric',
+  month: 'long',
+});
+
+// Подпись над сообщениями одного дня: «Сегодня», «Вчера» или «12 ноября»
+export function formatDay(value: string, now = new Date()): string {
+  const date = new Date(value);
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === now.toDateString()) return 'Сегодня';
+  if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
+  return longDayFormat.format(date);
+}

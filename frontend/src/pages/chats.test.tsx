@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
-import { formatSentAt } from '../api/chats';
+import { formatDay, formatSentAt } from '../api/chats';
 import { fakeSocket, io, serverEmit } from '../test/fake-socket';
 import { mockApi } from '../test/mock-api';
 
@@ -171,6 +171,23 @@ describe('сообщения', () => {
     expect(formatSentAt('2026-11-07T09:05:00', now)).toBe('09:05');
     expect(formatSentAt('2026-11-05T09:05:00', now)).toMatch(/^5 нояб/);
   });
+
+  it('сообщения разделены по дням: «Сегодня», «Вчера», дата', async () => {
+    const now = new Date('2026-11-07T15:00:00');
+    expect(formatDay('2026-11-07T09:05:00', now)).toBe('Сегодня');
+    expect(formatDay('2026-11-06T23:59:00', now)).toBe('Вчера');
+    expect(formatDay('2026-11-01T09:05:00', now)).toBe('1 ноября');
+
+    const later = { ...answer, id: 12, createdAt: '2026-11-08T10:00:00.000Z' };
+    open('#/chats/7', {
+      'GET /chats/7': [200, chat],
+      'GET /chats/7/messages': [200, [question, answer, later]],
+    });
+    const list = await screen.findByRole('list', { name: 'Сообщения' });
+    await within(list).findByText('Ещё продаёте?');
+    // Два сообщения 6 ноября под одной подписью, третье — под своей
+    expect(within(list).getAllByText(/^\d+ ноября$/)).toHaveLength(2);
+  });
 });
 
 describe('сообщения в реальном времени', () => {
@@ -197,6 +214,45 @@ describe('сообщения в реальном времени', () => {
     expect(io).toHaveBeenCalledWith('http://localhost:3000', {
       auth: { token: 'tok' },
     });
+  });
+
+  it('свои сообщения с галочкой: одна — отправлено, две — прочитано', async () => {
+    dialog();
+    await screen.findByLabelText('Отправлено');
+    // Ответы собеседника без галочек
+    fromServer(answer);
+    expect(screen.getAllByLabelText(/Отправлено|Прочитано/)).toHaveLength(1);
+
+    act(() =>
+      serverEmit('messages:read', { chatId: 8, readAt: answer.createdAt }),
+    );
+    expect(screen.queryByLabelText('Прочитано')).toBeNull();
+    act(() =>
+      serverEmit('messages:read', { chatId: 7, readAt: answer.createdAt }),
+    );
+    expect(screen.getByLabelText('Прочитано')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Отправлено')).toBeNull();
+  });
+
+  it('пока собеседник набирает текст, под лентой «Анна печатает»', async () => {
+    dialog();
+    await screen.findByText('Ещё продаёте?');
+    act(() => serverEmit('typing', { chatId: 8 }));
+    expect(screen.queryByText(/печатает/)).toBeNull();
+    act(() => serverEmit('typing', { chatId: 7 }));
+    expect(screen.getByText(/Анна печатает/)).toBeInTheDocument();
+    // Пришло сообщение — значит, дописал
+    fromServer(answer);
+    expect(screen.queryByText(/печатает/)).toBeNull();
+  });
+
+  it('свой набор текста сообщает собеседнику, но не на каждую букву', async () => {
+    dialog();
+    const field = await screen.findByRole('textbox', { name: 'Сообщение' });
+    fireEvent.change(field, { target: { value: 'Д' } });
+    fireEvent.change(field, { target: { value: 'Да' } });
+    expect(fakeSocket.emit).toHaveBeenCalledTimes(1);
+    expect(fakeSocket.emit).toHaveBeenCalledWith('typing', { chatId: 7 });
   });
 
   it('ответ собеседника появляется без перезагрузки', async () => {

@@ -30,7 +30,8 @@ export function Header() {
               >
                 Сообщения
                 {count > 0 && (
-                  <span className="counter" aria-hidden>
+                  // key: новое число — заново «подпрыгивает»
+                  <span key={count} className="counter" aria-hidden>
                     {count}
                   </span>
                 )}

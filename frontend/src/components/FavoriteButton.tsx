@@ -1,4 +1,5 @@
 import { Heart } from 'lucide-react';
+import { useState } from 'react';
 import type { Ad } from '../api/ads';
 import { useAuth } from '../api/auth-context';
 import { useFavorites } from '../api/favorites-context';
@@ -14,6 +15,8 @@ export function FavoriteButton({
 }) {
   const { token } = useAuth();
   const { isFavorite, toggle } = useFavorites();
+  // Пульс только по нажатию, а не у всех сердечек при загрузке
+  const [pulse, setPulse] = useState(false);
   if (!token) return null;
 
   const active = isFavorite(ad.id);
@@ -25,9 +28,18 @@ export function FavoriteButton({
       className={withText ? 'action favorite-action' : 'favorite'}
       aria-pressed={active}
       aria-label={withText ? undefined : `${label}: ${ad.title}`}
-      onClick={() => void toggle(ad)}
+      onClick={() => {
+        setPulse(true);
+        void toggle(ad);
+      }}
     >
-      <Heart size={18} fill={active ? 'currentColor' : 'none'} aria-hidden />
+      <Heart
+        className={pulse ? 'heart-pulse' : undefined}
+        onAnimationEnd={() => setPulse(false)}
+        size={18}
+        fill={active ? 'currentColor' : 'none'}
+        aria-hidden
+      />
       {withText && label}
     </button>
   );

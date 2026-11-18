@@ -169,16 +169,42 @@ describe('ChatsService', () => {
 
   it('открытый диалог отмечается прочитанным, свои сообщения не трогает', async () => {
     prisma.chat.findUnique.mockResolvedValue(chat);
-    await service.markRead(3, 9);
+    prisma.message.updateMany.mockResolvedValue({ count: 2 });
+    const receipt = await service.markRead(3, 9);
     expect(prisma.message.updateMany).toHaveBeenCalledWith({
       where: { chatId: 3, readAt: null, senderId: { not: 9 } },
       data: { readAt: expect.any(Date) as Date },
     });
+    // Продавец 9 прочитал — сообщить покупателю 5
+    expect(receipt).toEqual({
+      chatId: 3,
+      readAt: expect.any(Date) as Date,
+      senderId: 5,
+    });
+  });
+
+  it('о прочтении покупателем узнаёт продавец, а без новых сообщений — никто', async () => {
+    prisma.chat.findUnique.mockResolvedValue(chat);
+    prisma.message.updateMany.mockResolvedValueOnce({ count: 1 });
+    await expect(service.markRead(3, 5)).resolves.toMatchObject({
+      senderId: 9,
+    });
+    prisma.message.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(service.markRead(3, 5)).resolves.toBeNull();
   });
 
   it('чужой диалог прочитанным не отметить', async () => {
     prisma.chat.findUnique.mockResolvedValue(chat);
     await expect(service.markRead(3, 42)).rejects.toThrow(ForbiddenException);
     expect(prisma.message.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('«печатает…» адресуется другой стороне, чужим — отказ', async () => {
+    prisma.chat.findUnique.mockResolvedValue(chat);
+    await expect(service.companionOf(3, 5)).resolves.toBe(9);
+    await expect(service.companionOf(3, 9)).resolves.toBe(5);
+    await expect(service.companionOf(3, 42)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 });

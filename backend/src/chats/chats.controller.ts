@@ -77,10 +77,11 @@ export class ChatsController {
 
   @Post(':id/read')
   @HttpCode(HttpStatus.NO_CONTENT)
-  markRead(
+  async markRead(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<void> {
-    return this.chatsService.markRead(id, user.sub);
+    const receipt = await this.chatsService.markRead(id, user.sub);
+    if (receipt) this.chatsGateway.notifyRead(receipt);
   }
 }

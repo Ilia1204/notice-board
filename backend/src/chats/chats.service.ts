@@ -38,6 +38,13 @@ export interface SentMessage {
   memberIds: number[];
 }
 
+// Кому сообщить, что его сообщения в диалоге прочитаны
+export interface ReadReceipt {
+  chatId: number;
+  readAt: Date;
+  senderId: number;
+}
+
 const toSummary = (
   chat: ChatWithRelations,
   userId: number,
@@ -139,13 +146,24 @@ export class ChatsService {
     return { message, memberIds: [chat.buyerId, chat.ad.author.id] };
   }
 
-  // Открыл диалог — прочитал всё, что прислал собеседник
-  async markRead(id: number, userId: number): Promise<void> {
-    await this.findOwn(id, userId);
-    await this.prisma.message.updateMany({
+  // Открыл диалог — прочитал всё, что прислал собеседник.
+  // null — читать было нечего, отправителю сообщать не о чем
+  async markRead(id: number, userId: number): Promise<ReadReceipt | null> {
+    const chat = await this.findOwn(id, userId);
+    const readAt = new Date();
+    const { count } = await this.prisma.message.updateMany({
       where: { chatId: id, ...unreadFor(userId) },
-      data: { readAt: new Date() },
+      data: { readAt },
     });
+    if (count === 0) return null;
+    const senderId = chat.buyerId === userId ? chat.ad.author.id : chat.buyerId;
+    return { chatId: id, readAt, senderId };
+  }
+
+  // Кому показать «печатает…»: другой стороне диалога
+  async companionOf(id: number, userId: number): Promise<number> {
+    const chat = await this.findOwn(id, userId);
+    return chat.buyerId === userId ? chat.ad.author.id : chat.buyerId;
   }
 
   // Чужую переписку читать нельзя

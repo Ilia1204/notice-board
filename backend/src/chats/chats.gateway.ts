@@ -13,7 +13,11 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import type { Server, Socket } from 'socket.io';
 import type { JwtPayload } from '../auth/auth.types';
-import { ChatsService, type SentMessage } from './chats.service';
+import {
+  ChatsService,
+  type ReadReceipt,
+  type SentMessage,
+} from './chats.service';
 import { WsSendMessageDto } from './dto/ws-send-message.dto';
 
 // Ответ на событие message:send: сообщение или текст ошибки для пользователя
@@ -65,8 +69,32 @@ export class ChatsGateway implements OnGatewayConnection {
     }
   }
 
+  // «Печатает…»: собеседнику, и только участникам диалога
+  @SubscribeMessage('typing')
+  async typing(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: unknown,
+  ): Promise<void> {
+    const chatId = Number((body as { chatId?: unknown } | null)?.chatId);
+    if (!Number.isInteger(chatId)) return;
+    const { user } = client.data as { user: JwtPayload };
+    try {
+      const companionId = await this.chatsService.companionOf(chatId, user.sub);
+      this.server.to(userRoom(companionId)).emit('typing', { chatId });
+    } catch (e) {
+      if (!(e instanceof HttpException)) throw e;
+    }
+  }
+
   // Новое сообщение получают оба участника, в том числе другие вкладки отправителя
   deliver({ message, memberIds }: SentMessage): void {
     this.server.to(memberIds.map(userRoom)).emit('message:new', message);
+  }
+
+  // Отправитель видит ✓✓, как только собеседник открыл диалог
+  notifyRead({ chatId, readAt, senderId }: ReadReceipt): void {
+    this.server
+      .to(userRoom(senderId))
+      .emit('messages:read', { chatId, readAt });
   }
 }

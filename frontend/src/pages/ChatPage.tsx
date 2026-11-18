@@ -1,13 +1,67 @@
-import { ArrowLeft } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FormEvent, KeyboardEvent } from 'react';
+import { ArrowLeft, Check, CheckCheck } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuth } from '../api/auth-context';
-import { addMessage, chatsApi, formatSentAt, sendMessage } from '../api/chats';
+import {
+  addMessage,
+  chatsApi,
+  formatDay,
+  formatTime,
+  sendMessage,
+} from '../api/chats';
 import type { ChatSummary, Message } from '../api/chats';
-import { useNewMessages, useSocket } from '../api/socket-context';
+import type { ReadReceipt } from '../api/socket-context';
+import {
+  useNewMessages,
+  useReadReceipts,
+  useSocket,
+  useTyping,
+} from '../api/socket-context';
 import { useUnread } from '../api/unread-context';
 import { FormError } from '../components/FormError';
+
+// Сообщение в ленте; под своими — ✓ отправлено или ✓✓ прочитано
+function Bubble({ message, mine }: { message: Message; mine: boolean }) {
+  const status = message.readAt ? 'Прочитано' : 'Отправлено';
+  return (
+    <li className={mine ? 'bubble bubble--mine' : 'bubble'}>
+      <p>{message.text}</p>
+      <div className="bubble__meta">
+        <time dateTime={message.createdAt}>
+          {formatTime(message.createdAt)}
+        </time>
+        {mine && (
+          <span
+            className={
+              message.readAt
+                ? 'bubble__status bubble__status--read'
+                : 'bubble__status'
+            }
+            title={status}
+            aria-label={status}
+          >
+            {message.readAt ? (
+              <CheckCheck size={14} aria-hidden />
+            ) : (
+              <Check size={14} aria-hidden />
+            )}
+          </span>
+        )}
+      </div>
+    </li>
+  );
+}
+
+// Подпись дня ставим перед первым сообщением каждого дня
+const startsDay = (messages: Message[], index: number) =>
+  index === 0 ||
+  new Date(messages[index - 1].createdAt).toDateString() !==
+    new Date(messages[index].createdAt).toDateString();
+
+// «Печатает…» шлём не чаще раза в 2 с и гасим через 3 с тишины
+const TYPING_THROTTLE = 2000;
+const TYPING_TIMEOUT = 3000;
 
 // Диалог (Т10, Т11, Т12): история переписки, отправка и приём без перезагрузки;
 // всё, что видно на экране, считается прочитанным
@@ -23,7 +77,10 @@ export function ChatPage() {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const bottom = useRef<HTMLLIElement>(null);
+  const [typing, setTyping] = useState(false);
+  const list = useRef<HTMLUListElement>(null);
+  const lastTypingSent = useRef(0);
+  const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const markRead = useCallback(
     () =>
@@ -52,15 +109,62 @@ export function ChatPage() {
       (message: Message) => {
         if (message.chatId !== chatId) return;
         setMessages((current) => addMessage(current, message));
-        if (message.senderId !== user?.id) void markRead();
+        if (message.senderId !== user?.id) {
+          setTyping(false);
+          void markRead();
+        }
       },
       [chatId, user?.id, markRead],
     ),
   );
 
-  // Последнее сообщение всегда на виду
+  // ✓✓ на своих сообщениях, как только собеседник их прочитал
+  useReadReceipts(
+    useCallback(
+      ({ chatId: readChatId, readAt }: ReadReceipt) => {
+        if (readChatId !== chatId) return;
+        setMessages((current) =>
+          current.map((message) =>
+            message.senderId === user?.id && !message.readAt
+              ? { ...message, readAt }
+              : message,
+          ),
+        );
+      },
+      [chatId, user?.id],
+    ),
+  );
+
+  useTyping(
+    useCallback(
+      ({ chatId: typingChatId }: { chatId: number }) => {
+        if (typingChatId !== chatId) return;
+        setTyping(true);
+        clearTimeout(typingTimer.current);
+        typingTimer.current = setTimeout(
+          () => setTyping(false),
+          TYPING_TIMEOUT,
+        );
+      },
+      [chatId],
+    ),
+  );
+
+  useEffect(() => () => clearTimeout(typingTimer.current), []);
+
+  function handleTextChange(event: ChangeEvent<HTMLTextAreaElement>) {
+    setText(event.target.value);
+    const now = Date.now();
+    if (socket && now - lastTypingSent.current > TYPING_THROTTLE) {
+      lastTypingSent.current = now;
+      socket.emit('typing', { chatId });
+    }
+  }
+
+  // Последнее сообщение всегда на виду; прокручиваем только ленту
+  // сообщений, сама страница остаётся на месте
   useEffect(() => {
-    bottom.current?.scrollIntoView?.({ block: 'end' });
+    if (list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [messages]);
 
   async function handleSubmit(event?: FormEvent<HTMLFormElement>) {
@@ -98,27 +202,35 @@ export function ChatPage() {
             <h2>{chat.companion.name}</h2>
             <Link to={`/ads/${chat.ad.id}`}>{chat.ad.title}</Link>
           </header>
-          <ul className="chat__messages" aria-label="Сообщения">
+          <ul ref={list} className="chat__messages" aria-label="Сообщения">
             {messages.length === 0 && (
               <li className="chat__hint">Напишите первое сообщение</li>
             )}
-            {messages.map((message) => (
-              <li
-                key={message.id}
-                className={
-                  message.senderId === user?.id
-                    ? 'bubble bubble--mine'
-                    : 'bubble'
-                }
-              >
-                <p>{message.text}</p>
-                <time dateTime={message.createdAt}>
-                  {formatSentAt(message.createdAt)}
-                </time>
-              </li>
+            {messages.map((message, index) => (
+              <Fragment key={message.id}>
+                {startsDay(messages, index) && (
+                  <li className="chat__day">{formatDay(message.createdAt)}</li>
+                )}
+                <Bubble
+                  message={message}
+                  mine={message.senderId === user?.id}
+                />
+              </Fragment>
             ))}
-            <li ref={bottom} aria-hidden className="chat__end" />
           </ul>
+          {/* Строка под лентой занимает место всегда — чат не дёргается */}
+          <div className="chat__typing" aria-live="polite">
+            {typing && (
+              <p>
+                {chat.companion.name} печатает
+                <span className="typing-dots" aria-hidden>
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </p>
+            )}
+          </div>
           <form className="chat__form" onSubmit={handleSubmit}>
             <textarea
               aria-label="Сообщение"
@@ -126,7 +238,7 @@ export function ChatPage() {
               rows={2}
               maxLength={2000}
               value={text}
-              onChange={(event) => setText(event.target.value)}
+              onChange={handleTextChange}
               onKeyDown={handleKeyDown}
             />
             <button type="submit" disabled={pending || !text.trim()}>
