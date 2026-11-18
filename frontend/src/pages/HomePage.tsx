@@ -49,7 +49,8 @@ export function HomePage() {
       <section className="hero">
         <div>
           <h2 className="hero__title">
-            Вещам&nbsp;— <em>вторая жизнь</em>, соседям&nbsp;— выгода
+            Что у&nbsp;вас пылится —<br />
+            <em>другим пригодится</em>
           </h2>
           <p className="hero__text">
             Доска объявлений по всей стране. Отдайте ненужное и&nbsp;найдите
