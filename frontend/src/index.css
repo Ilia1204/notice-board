@@ -122,6 +122,7 @@ h2 {
   font-weight: 700;
   line-height: 1;
   vertical-align: 2px;
+  animation: pop 0.35s ease-out;
 }
 
 .button-link {
@@ -140,6 +141,10 @@ h2 {
   padding: 24px 32px 64px;
 }
 
+.catalog {
+  scroll-margin-top: 16px;
+}
+
 .section-title {
   margin: 0 0 16px;
   font-size: 34px;
@@ -156,8 +161,8 @@ h2 {
 
 .hero__title {
   margin: 0;
-  font-size: clamp(40px, 5.4vw, 66px);
-  line-height: 1.04;
+  font-size: clamp(36px, 4.4vw, 56px);
+  line-height: 1.12;
 }
 
 .hero__title em {
@@ -167,7 +172,7 @@ h2 {
 
 .hero__text {
   max-width: 480px;
-  margin: 18px 0 0;
+  margin: 24px 0 0;
   color: var(--ink-soft);
   font-size: 19px;
 }
@@ -273,7 +278,9 @@ h2 {
   height: 100%;
   color: var(--ink);
   text-decoration: none;
-  transition: transform 0.15s;
+  transition:
+    transform 0.2s ease-out,
+    box-shadow 0.2s ease-out;
   overflow: hidden;
   background: var(--card);
   border-radius: 20px;
@@ -281,7 +288,8 @@ h2 {
 }
 
 .ad-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
+  box-shadow: 0 24px 44px -26px rgb(34 48 42 / 55%);
 }
 
 .ad-card:hover .ad-card__title {
@@ -317,6 +325,17 @@ h2 {
   margin: 4px 0 0;
   font-size: 16px;
   font-weight: 500;
+}
+
+.ad-card__badge {
+  float: right;
+  margin-left: 8px;
+  padding: 3px 10px;
+  color: var(--green);
+  background: var(--green-light);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .ad-card__meta {
@@ -719,6 +738,10 @@ button:disabled {
   color: var(--peach);
 }
 
+.heart-pulse {
+  animation: pop 0.35s ease-out;
+}
+
 .favorite-action {
   display: inline-flex;
   align-items: center;
@@ -1033,13 +1056,91 @@ button:disabled {
   font-size: 14px;
 }
 
+.chat__typing {
+  height: 28px;
+  padding: 0 24px;
+}
+
+.chat__typing p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  animation: fade-in 0.2s ease-out;
+}
+
+.typing-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.typing-dots span {
+  width: 5px;
+  height: 5px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes pop {
+  50% {
+    transform: scale(1.3);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.chat__day {
+  align-self: center;
+  margin: 8px 0 4px;
+  padding: 3px 12px;
+  color: var(--ink-soft);
+  background: var(--cream);
+  border-radius: 999px;
+  font-size: 13px;
+}
+
 .chat__messages {
   display: flex;
   flex-direction: column;
   gap: 8px;
   height: min(60vh, 520px);
   margin: 0;
-  padding: 20px 24px;
+  padding: 20px 24px 8px;
   overflow-y: auto;
   list-style: none;
 }
@@ -1049,16 +1150,17 @@ button:disabled {
   color: var(--ink-soft);
 }
 
-.chat__end {
-  flex: none;
-}
-
 .bubble {
   align-self: flex-start;
   max-width: 75%;
   padding: 10px 14px;
   background: var(--cream);
   border-radius: 16px 16px 16px 4px;
+}
+
+/* Новое сообщение плавно выезжает снизу; при открытии — только последнее */
+.bubble:last-child {
+  animation: bubble-in 0.25s ease-out;
 }
 
 .bubble--mine {
@@ -1073,12 +1175,22 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
-.bubble time {
-  display: block;
+.bubble__meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
   margin-top: 4px;
   color: var(--ink-soft);
   font-size: 12px;
-  text-align: right;
+}
+
+.bubble__status {
+  display: inline-flex;
+}
+
+.bubble__status--read {
+  color: var(--green);
 }
 
 .chat__form {
@@ -1143,6 +1255,7 @@ button:disabled {
 
   .chat__head,
   .chat__messages,
+  .chat__typing,
   .chat__form {
     padding-left: 16px;
     padding-right: 16px;
@@ -1150,5 +1263,20 @@ button:disabled {
 
   .bubble {
     max-width: 88%;
+  }
+}
+
+/* Кто выключил анимации в системе, видит всё без движения */
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots span,
+  .chat__typing p,
+  .bubble:last-child,
+  .heart-pulse,
+  .counter {
+    animation: none;
+  }
+
+  .ad-card {
+    transition: none;
   }
 }
