@@ -6,6 +6,9 @@ import {
   Role,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { randomUUID } from 'node:crypto';
+import { copyFile, mkdir } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 
 // Начальные данные: модераторы, категории, пользователи и примеры объявлений
 const prisma = new PrismaClient();
@@ -51,6 +54,8 @@ const CATEGORIES = [
 // Объявления Анны, на них опираются e2e-тесты: названия и цены не менять
 const DEMO_ADS = [
   {
+    photo: 'thinkpad',
+    daysAgo: 12,
     title: 'Ноутбук Lenovo ThinkPad T480',
     description:
       'Core i5, 16 ГБ памяти, SSD 512 ГБ.\nБатарея держит около 5 часов.\n\nВ комплекте зарядка.',
@@ -58,6 +63,8 @@ const DEMO_ADS = [
     category: 'Электроника',
   },
   {
+    photo: 'stels',
+    daysAgo: 11,
     title: 'Велосипед Stels Navigator',
     description:
       'Горный, 21 скорость, колёса 26 дюймов.\nКатался два сезона, после ТО.',
@@ -65,6 +72,8 @@ const DEMO_ADS = [
     category: 'Транспорт',
   },
   {
+    photo: 'room',
+    daysAgo: 13,
     title: 'Сдаю комнату у метро',
     description:
       'Комната 14 м², есть мебель и стиральная машина.\nБез животных.',
@@ -72,6 +81,8 @@ const DEMO_ADS = [
     category: 'Недвижимость',
   },
   {
+    photo: 'washer',
+    daysAgo: 14,
     title: 'Ремонт стиральных машин',
     description: 'Выезд на дом в день обращения.\nЦена зависит от поломки.',
     price: null,
@@ -91,15 +102,17 @@ async function seedDemoAds() {
   });
   if (await prisma.ad.count({ where: { authorId: author.id } })) return;
 
-  for (const { category, ...ad } of DEMO_ADS) {
-    await prisma.ad.create({
+  for (const { category, photo, daysAgo: days, ...ad } of DEMO_ADS) {
+    const { id } = await prisma.ad.create({
       data: {
         ...ad,
         status: AdStatus.PUBLISHED,
+        createdAt: daysAgo(days, 2),
         author: { connect: { id: author.id } },
         category: { connect: { name: category } },
       },
     });
+    await attachPhoto(id, photo);
   }
 }
 
@@ -165,7 +178,7 @@ const MARKET_ADS: {
   {
     key: 'stroller',
     author: 'maria',
-    title: 'Детская коляска Cybex 2 в 1',
+    title: 'Детская коляска Bugaboo Cameleon',
     description:
       'Люлька и прогулочный блок, дождевик и сумка.\nОдин ребёнок, без поломок.',
     price: 14000,
@@ -186,8 +199,8 @@ const MARKET_ADS: {
   {
     key: 'chest',
     author: 'maria',
-    title: 'Комод IKEA Hemnes, белый',
-    description: 'Восемь ящиков, без сколов.\nСамовывоз, разберу сама.',
+    title: 'Комод деревянный, четыре ящика',
+    description: 'Старинный, массив дерева, после реставрации.\nСамовывоз.',
     price: 7000,
     category: 'Дом и сад',
     status: AdStatus.PENDING,
@@ -387,6 +400,19 @@ function daysAgo(days: number, hours = 0) {
 
 type Ids = Record<string, { id: number; authorId: number }>;
 
+// Фото из prisma/demo-photos копируются в папку загрузок под новым именем
+const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR ?? 'uploads');
+
+async function attachPhoto(adId: number, photo: string) {
+  const filename = `${randomUUID()}.jpg`;
+  await mkdir(UPLOAD_DIR, { recursive: true });
+  await copyFile(
+    join(__dirname, 'demo-photos', `${photo}.jpg`),
+    join(UPLOAD_DIR, filename),
+  );
+  await prisma.adImage.create({ data: { adId, filename, position: 0 } });
+}
+
 async function seedMarket() {
   if (await prisma.user.findUnique({ where: { email: 'ivan@board.local' } })) {
     return;
@@ -433,6 +459,7 @@ async function seedMarketAds(users: Record<UserKey, number>) {
         category: { connect: { name: category } },
       },
     });
+    await attachPhoto(ads[key].id, key);
   }
   return ads;
 }
