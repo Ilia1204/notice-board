@@ -14,7 +14,7 @@ describe('ChatsController', () => {
     unreadCount: jest.fn(),
     markRead: jest.fn(),
   };
-  const gateway = { deliver: jest.fn() };
+  const gateway = { deliver: jest.fn(), notifyRead: jest.fn() };
   const user = { sub: 5, email: 'a@b.c', role: 'USER' as const };
 
   beforeEach(async () => {
@@ -58,5 +58,16 @@ describe('ChatsController', () => {
     await controller.markRead(user, 3);
     expect(service.unreadCount).toHaveBeenCalledWith(5);
     expect(service.markRead).toHaveBeenCalledWith(3, 5);
+  });
+
+  it('сообщает отправителю о прочтении, только если что-то прочитано', async () => {
+    const receipt = { chatId: 3, readAt: new Date(), senderId: 9 };
+    service.markRead.mockResolvedValueOnce(receipt);
+    await controller.markRead(user, 3);
+    expect(gateway.notifyRead).toHaveBeenCalledWith(receipt);
+    gateway.notifyRead.mockClear();
+    service.markRead.mockResolvedValueOnce(null);
+    await controller.markRead(user, 3);
+    expect(gateway.notifyRead).not.toHaveBeenCalled();
   });
 });

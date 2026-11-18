@@ -8,7 +8,7 @@ import { ChatsService } from './chats.service';
 describe('ChatsGateway', () => {
   let gateway: ChatsGateway;
   const jwt = { verifyAsync: jest.fn() };
-  const service = { send: jest.fn() };
+  const service = { send: jest.fn(), companionOf: jest.fn() };
   const emit = jest.fn();
   const to = jest.fn(() => ({ emit }));
   const user = { sub: 5, email: 'a@b.c', role: 'USER' as const };
@@ -60,6 +60,31 @@ describe('ChatsGateway', () => {
     expect(service.send).toHaveBeenCalledWith(3, 5, 'Привет');
     expect(to).toHaveBeenCalledWith(['user:5', 'user:9']);
     expect(emit).toHaveBeenCalledWith('message:new', message);
+  });
+
+  it('о прочтении сообщает только отправителю', () => {
+    const readAt = new Date();
+    gateway.notifyRead({ chatId: 3, readAt, senderId: 9 });
+    expect(to).toHaveBeenCalledWith('user:9');
+    expect(emit).toHaveBeenCalledWith('messages:read', { chatId: 3, readAt });
+  });
+
+  it('«печатает…» показывает только собеседнику', async () => {
+    service.companionOf.mockResolvedValue(9);
+    await gateway.typing(socket(), { chatId: 3 });
+    expect(service.companionOf).toHaveBeenCalledWith(3, 5);
+    expect(to).toHaveBeenCalledWith('user:9');
+    expect(emit).toHaveBeenCalledWith('typing', { chatId: 3 });
+  });
+
+  it('«печатает…» в чужой диалог никуда не уходит', async () => {
+    service.companionOf.mockRejectedValue(
+      new ForbiddenException('Это чужой диалог'),
+    );
+    await gateway.typing(socket(), { chatId: 3 });
+    await gateway.typing(socket(), { chatId: 'abc' });
+    expect(service.companionOf).toHaveBeenCalledTimes(1);
+    expect(emit).not.toHaveBeenCalled();
   });
 
   it('пустое сообщение не отправляет', async () => {

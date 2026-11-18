@@ -175,4 +175,20 @@ describe('Chats realtime (e2e)', () => {
       'Когда удобно?',
     ]);
   });
+
+  it('отправитель узнаёт о прочтении без перезагрузки', async () => {
+    const buyer = await connect(buyerToken);
+    const received = nextMessage(buyer);
+    await buyer.emitWithAck('message:send', { chatId, text: 'Вы тут?' });
+    await received;
+
+    const read = new Promise<{ chatId: number; readAt: string }>((resolve) =>
+      buyer.once('messages:read', resolve),
+    );
+    await server()
+      .post(`/chats/${chatId}/read`)
+      .set('Authorization', auth(sellerToken))
+      .expect(204);
+    await expect(read).resolves.toMatchObject({ chatId });
+  });
 });
