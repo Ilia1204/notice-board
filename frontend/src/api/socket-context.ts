@@ -18,3 +18,32 @@ export function useNewMessages(onMessage: (message: Message) => void): void {
     };
   }, [socket, onMessage]);
 }
+
+// Собеседник открыл диалог: всё, что ему отправлено, прочитано
+export interface ReadReceipt {
+  chatId: number;
+  readAt: string;
+}
+
+export function useReadReceipts(onRead: (receipt: ReadReceipt) => void): void {
+  const socket = useSocket();
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('messages:read', onRead);
+    return () => {
+      socket.off('messages:read', onRead);
+    };
+  }, [socket, onRead]);
+}
+
+// Собеседник набирает сообщение в одном из диалогов
+export function useTyping(onTyping: (event: { chatId: number }) => void): void {
+  const socket = useSocket();
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('typing', onTyping);
+    return () => {
+      socket.off('typing', onTyping);
+    };
+  }, [socket, onTyping]);
+}

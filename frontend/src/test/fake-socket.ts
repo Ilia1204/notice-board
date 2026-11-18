@@ -13,6 +13,7 @@ export const fakeSocket = {
   off: vi.fn((event: string, handler: Handler) => {
     handlers.get(event)?.delete(handler);
   }),
+  emit: vi.fn(),
   emitWithAck: vi.fn(),
   timeout: vi.fn(() => fakeSocket),
   disconnect: vi.fn(),
