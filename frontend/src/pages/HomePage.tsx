@@ -1,10 +1,11 @@
 import { Bike, Search, Smartphone, Sofa } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { adsApi } from '../api/ads';
 import type { Ad, AdFilters } from '../api/ads';
 import { categoriesApi } from '../api/categories';
 import type { Category } from '../api/categories';
+import { useAuth } from '../api/auth-context';
 import { useFavorites } from '../api/favorites-context';
 import { AdCard } from '../components/AdCard';
 import { FavoriteButton } from '../components/FavoriteButton';
@@ -15,7 +16,9 @@ export function HomePage() {
   const [ads, setAds] = useState<Ad[] | null>(null);
   const [filters, setFilters] = useState<AdFilters>({});
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
   const { error: favoritesError } = useFavorites();
+  const catalogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     categoriesApi
@@ -39,6 +42,14 @@ export function HomePage() {
     event.preventDefault();
     const q = String(new FormData(event.currentTarget).get('q'));
     setFilters((prev) => ({ ...prev, q }));
+    catalogRef.current?.scrollIntoView?.({ behavior: 'smooth' });
+  }
+
+  // Очистка поля крестиком сразу возвращает все объявления
+  function handleSearchChange(event: ChangeEvent<HTMLInputElement>) {
+    if (event.target.value === '' && filters.q) {
+      setFilters((prev) => ({ ...prev, q: '' }));
+    }
   }
 
   const chooseCategory = (categoryId?: number) =>
@@ -49,12 +60,13 @@ export function HomePage() {
       <section className="hero">
         <div>
           <h2 className="hero__title">
-            Что у&nbsp;вас пылится —<br />
-            <em>другим пригодится</em>
+            Что у&nbsp;вас пылится,
+            <br />
+            <em>другим пригодится!</em>
           </h2>
           <p className="hero__text">
-            Доска объявлений по всей стране. Отдайте ненужное и&nbsp;найдите
-            нужное рядом с&nbsp;домом.
+            Размещайте объявления бесплатно и&nbsp;договаривайтесь
+            с&nbsp;продавцом прямо в&nbsp;чате.
           </p>
           <form className="search" role="search" onSubmit={handleSearch}>
             <input
@@ -63,6 +75,7 @@ export function HomePage() {
               aria-label="Поиск по названию"
               placeholder="Что ищете?"
               maxLength={100}
+              onChange={handleSearchChange}
             />
             <button type="submit">
               <Search size={18} aria-hidden />
@@ -84,7 +97,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section>
+      <section ref={catalogRef} className="catalog">
         <h2 className="section-title">Рубрики</h2>
         {error && <p className="form__error">{error}</p>}
         <FormError message={favoritesError} />
@@ -118,7 +131,7 @@ export function HomePage() {
           <ul className="ad-grid" aria-label="Объявления">
             {ads.map((ad) => (
               <li key={ad.id} className="favorable">
-                <AdCard ad={ad} />
+                <AdCard ad={ad} own={ad.author.id === user?.id} />
                 <FavoriteButton ad={ad} />
               </li>
             ))}
