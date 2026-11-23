@@ -7,6 +7,7 @@ import type { Ad } from '../api/ads';
 import { useFavorites } from '../api/favorites-context';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { FormError } from '../components/FormError';
+import { HideAd } from '../components/HideAd';
 import { ReportAd } from '../components/ReportAd';
 import { WriteSellerButton } from '../components/WriteSellerButton';
 
@@ -51,13 +52,6 @@ export function AdPage() {
     act(`Удалить объявление «${target.title}»?`, async () => {
       await adsApi.remove(target.id, token!);
       await navigate('/my-ads');
-    });
-
-  // Скрытое объявление больше не открывается, поэтому уходим на главную
-  const hide = (target: Ad) =>
-    act(`Скрыть объявление «${target.title}»?`, async () => {
-      await adsApi.moderate(target.id, 'REJECTED', token!);
-      await navigate('/');
     });
 
   if (error || !ad) {
@@ -141,15 +135,7 @@ export function AdPage() {
                 </button>
               </>
             )}
-            {user?.role === 'MODERATOR' && (
-              <button
-                type="button"
-                className="action action--danger"
-                onClick={() => void hide(ad)}
-              >
-                Скрыть
-              </button>
-            )}
+            <HideAd key={ad.id} ad={ad} />
           </div>
           <FormError message={actionError ?? favoritesError} />
           <ReportAd key={ad.id} ad={ad} />

@@ -688,6 +688,10 @@ button:disabled {
   display: none;
 }
 
+.ad-page__actions .report__form {
+  flex-basis: 100%;
+}
+
 .action {
   padding: 10px 20px;
   background: var(--green-light);
@@ -774,6 +778,10 @@ button:disabled {
 .moderation__item h3,
 .moderation__item p {
   margin: 0;
+}
+
+.moderation__order {
+  margin-bottom: 20px;
 }
 
 /* Жалобы (Т13) */
@@ -896,6 +904,67 @@ button:disabled {
 .status--rejected {
   background: var(--line);
   color: var(--ink);
+}
+
+.my-ad__reason {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--peach-light);
+  border-radius: 12px;
+  color: var(--error);
+  font-size: 14px;
+}
+
+.edit-reason {
+  max-width: 720px;
+  margin-bottom: 16px;
+}
+
+/* Причина отклонения у модератора */
+.reject__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.reject__presets .chip {
+  padding: 6px 14px;
+  font-size: 14px;
+}
+
+/* Решение модератора для автора */
+.notices {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: grid;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--card);
+  border-left: 4px solid var(--green);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px -24px rgb(34 48 42 / 55%);
+  animation: fade-in 0.25s ease-out;
+}
+
+.notice--rejected {
+  border-left-color: var(--error);
+}
+
+.notice__text {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  font-size: 14px;
 }
 
 .panel {

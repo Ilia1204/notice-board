@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect } from 'react';
 import type { Socket } from 'socket.io-client';
+import type { Ad } from './ads';
 import type { Message } from './chats';
 
 // Соединение с сервером для чата; у гостя его нет
@@ -46,4 +47,20 @@ export function useTyping(onTyping: (event: { chatId: number }) => void): void {
       socket.off('typing', onTyping);
     };
   }, [socket, onTyping]);
+}
+
+// Модератор принял решение по объявлению пользователя
+export type AdModerated = Pick<Ad, 'id' | 'title' | 'status' | 'rejectReason'>;
+
+export function useAdModerated(
+  onModerated: (event: AdModerated) => void,
+): void {
+  const socket = useSocket();
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('ad:moderated', onModerated);
+    return () => {
+      socket.off('ad:moderated', onModerated);
+    };
+  }, [socket, onModerated]);
 }

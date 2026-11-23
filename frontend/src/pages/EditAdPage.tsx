@@ -33,6 +33,11 @@ export function EditAdPage() {
         <ArrowLeft size={18} aria-hidden /> К моим объявлениям
       </Link>
       <FormError message={error} />
+      {ad?.status === 'REJECTED' && ad.rejectReason && (
+        <p className="my-ad__reason edit-reason">
+          Модератор отклонил объявление. Причина: {ad.rejectReason}
+        </p>
+      )}
       {ad && (
         <AdForm
           ad={ad}

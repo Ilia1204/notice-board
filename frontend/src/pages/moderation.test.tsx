@@ -20,7 +20,15 @@ const bike = {
   images: [{ id: 11, filename: 'a.jpg' }],
   createdAt: '2026-11-01T10:00:00.000Z',
 };
-const sofa = { ...bike, id: 2, title: 'Диван', price: null, images: [] };
+// Диван прислан позже — после правки он встаёт в очередь заново
+const sofa = {
+  ...bike,
+  id: 2,
+  title: 'Диван',
+  price: null,
+  images: [],
+  updatedAt: '2026-11-05T10:00:00.000Z',
+};
 
 function openQueue(user: object, routes = {}) {
   localStorage.setItem('notice-board.token', 'tok');
@@ -52,7 +60,9 @@ describe('модерация', () => {
     openQueue(moderator);
     const item = within(await itemOf('Велосипед'));
     expect(item.getByText(/15\s000 ₽/)).toBeInTheDocument();
-    expect(item.getByText('Транспорт · Иван')).toBeInTheDocument();
+    expect(
+      item.getByText(/^Транспорт · Иван · отправлено 1 ноября/),
+    ).toBeInTheDocument();
     expect(item.getByText(bike.description)).toBeInTheDocument();
     expect(
       item.getByRole('img', { name: 'Велосипед, фото 1' }),
@@ -60,26 +70,117 @@ describe('модерация', () => {
     expect(screen.getByRole('link', { name: 'Модерация' })).toBeInTheDocument();
   });
 
-  it.each([
-    ['Опубликовать', 'PUBLISHED'],
-    ['Отклонить', 'REJECTED'],
-  ])(
-    '%s: решение уходит на сервер, объявление пропадает',
-    async (name, status) => {
-      const fetchMock = openQueue(moderator, {
-        'PATCH /ads/1/status': [200, { ...bike, status }],
-      });
-      const item = within(await itemOf('Велосипед'));
-      fireEvent.click(item.getByRole('button', { name }));
-
-      await screen.findByRole('heading', { name: 'Диван' });
-      await vi.waitFor(() =>
-        expect(screen.queryByRole('heading', { name: 'Велосипед' })).toBeNull(),
+  it('сначала показывает старые, по кнопке — новые', async () => {
+    openQueue(moderator);
+    const titles = async () =>
+      (await screen.findAllByRole('heading', { level: 3 })).map(
+        (h) => h.textContent,
       );
-      const call = fetchMock.mock.calls.find(([, i]) => i?.method === 'PATCH');
-      expect(call?.[1]?.body).toBe(JSON.stringify({ status }));
-    },
-  );
+    expect(await titles()).toEqual(['Велосипед', 'Диван']);
+    expect(
+      screen.getByRole('button', { name: 'Сначала старые' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сначала новые' }));
+    expect(await titles()).toEqual(['Диван', 'Велосипед']);
+  });
+
+  const patchBody = (fetchMock: ReturnType<typeof mockApi>) => {
+    const call = fetchMock.mock.calls.find(([, i]) => i?.method === 'PATCH');
+    return call?.[1]?.body;
+  };
+
+  const queueLeft = () =>
+    vi.waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Велосипед' })).toBeNull(),
+    );
+
+  it('публикует: решение уходит на сервер, объявление пропадает', async () => {
+    const fetchMock = openQueue(moderator, {
+      'PATCH /ads/1/status': [200, { ...bike, status: 'PUBLISHED' }],
+    });
+    const item = within(await itemOf('Велосипед'));
+    fireEvent.click(item.getByRole('button', { name: 'Опубликовать' }));
+
+    await screen.findByRole('heading', { name: 'Диван' });
+    await queueLeft();
+    expect(patchBody(fetchMock)).toBe(JSON.stringify({ status: 'PUBLISHED' }));
+  });
+
+  it('отклоняет с причиной из готовых', async () => {
+    const fetchMock = openQueue(moderator, {
+      'PATCH /ads/1/status': [200, { ...bike, status: 'REJECTED' }],
+    });
+    const item = within(await itemOf('Велосипед'));
+    fireEvent.click(item.getByRole('button', { name: 'Отклонить' }));
+    const form = within(
+      screen.getByRole('form', { name: 'Отклонить «Велосипед»' }),
+    );
+    fireEvent.click(form.getByRole('button', { name: 'Нет фото товара' }));
+    expect(form.getByLabelText('Причина для автора')).toHaveValue(
+      'Нет фото товара',
+    );
+    fireEvent.click(form.getByRole('button', { name: 'Отклонить' }));
+
+    await queueLeft();
+    expect(patchBody(fetchMock)).toBe(
+      JSON.stringify({ status: 'REJECTED', reason: 'Нет фото товара' }),
+    );
+  });
+
+  it('отклоняет со своей причиной без лишних пробелов', async () => {
+    const fetchMock = openQueue(moderator, {
+      'PATCH /ads/1/status': [200, { ...bike, status: 'REJECTED' }],
+    });
+    const item = within(await itemOf('Велосипед'));
+    fireEvent.click(item.getByRole('button', { name: 'Отклонить' }));
+    fireEvent.change(screen.getByLabelText('Причина для автора'), {
+      target: { value: '  Цена не совпадает с описанием ' },
+    });
+    fireEvent.click(
+      within(screen.getByRole('form')).getByRole('button', {
+        name: 'Отклонить',
+      }),
+    );
+
+    await queueLeft();
+    expect(patchBody(fetchMock)).toBe(
+      JSON.stringify({
+        status: 'REJECTED',
+        reason: 'Цена не совпадает с описанием',
+      }),
+    );
+  });
+
+  it('без причины не отклоняет', async () => {
+    const fetchMock = openQueue(moderator);
+    const item = within(await itemOf('Велосипед'));
+    fireEvent.click(item.getByRole('button', { name: 'Отклонить' }));
+    fireEvent.change(screen.getByLabelText('Причина для автора'), {
+      target: { value: '   ' },
+    });
+    fireEvent.click(
+      within(screen.getByRole('form')).getByRole('button', {
+        name: 'Отклонить',
+      }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Укажите причину отклонения',
+    );
+    expect(patchBody(fetchMock)).toBeUndefined();
+  });
+
+  it('отмена возвращает кнопки решения', async () => {
+    openQueue(moderator);
+    const item = within(await itemOf('Велосипед'));
+    fireEvent.click(item.getByRole('button', { name: 'Отклонить' }));
+    fireEvent.click(item.getByRole('button', { name: 'Отмена' }));
+    expect(screen.queryByRole('form')).toBeNull();
+    expect(
+      item.getByRole('button', { name: 'Опубликовать' }),
+    ).toBeInTheDocument();
+  });
 
   it('после последнего решения сообщает, что всё проверено', async () => {
     openQueue(moderator, {
@@ -99,6 +200,12 @@ describe('модерация', () => {
     });
     const item = within(await itemOf('Велосипед'));
     fireEvent.click(item.getByRole('button', { name: 'Отклонить' }));
+    fireEvent.click(item.getByRole('button', { name: 'Не та рубрика' }));
+    fireEvent.click(
+      within(screen.getByRole('form')).getByRole('button', {
+        name: 'Отклонить',
+      }),
+    );
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Объявление не найдено',
     );

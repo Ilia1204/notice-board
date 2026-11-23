@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { mockApi } from '../test/mock-api';
@@ -20,8 +26,9 @@ const bike = {
 
 function openAd(routes = {}) {
   window.location.hash = '#/ads/1';
-  mockApi({ 'GET /ads/1': [200, bike], ...routes });
+  const fetchMock = mockApi({ 'GET /ads/1': [200, bike], ...routes });
   render(<App />);
+  return fetchMock;
 }
 
 describe('карточка объявления', () => {
@@ -158,23 +165,42 @@ describe('карточка объявления', () => {
       expect(screen.queryByRole('button', { name: 'Скрыть' })).toBeNull();
     });
 
-    it('скрывает объявление и возвращает на главную', async () => {
-      vi.stubGlobal('confirm', () => true);
-      openAd({
+    it('скрывает объявление с причиной и возвращает на главную', async () => {
+      const fetchMock = openAd({
         ...asModerator(),
         'PATCH /ads/1/status': [200, { ...bike, status: 'REJECTED' }],
       });
       fireEvent.click(await screen.findByRole('button', { name: 'Скрыть' }));
+      const form = within(
+        screen.getByRole('form', { name: 'Почему скрываете объявление?' }),
+      );
+      fireEvent.click(
+        form.getByRole('button', { name: 'Запрещённый товар или услуга' }),
+      );
+      fireEvent.click(form.getByRole('button', { name: 'Скрыть' }));
       expect(
         await screen.findByRole('heading', { name: 'Рубрики' }),
       ).toBeInTheDocument();
+      const call = fetchMock.mock.calls.find(([, i]) => i?.method === 'PATCH');
+      expect(call?.[1]?.body).toBe(
+        JSON.stringify({
+          status: 'REJECTED',
+          reason: 'Запрещённый товар или услуга',
+        }),
+      );
     });
 
-    it('без подтверждения ничего не меняет', async () => {
-      vi.stubGlobal('confirm', () => false);
-      openAd(asModerator());
+    it('после отмены ничего не меняет', async () => {
+      const fetchMock = openAd(asModerator());
       fireEvent.click(await screen.findByRole('button', { name: 'Скрыть' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
       expect(screen.getByText('Велосипед Stels')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Скрыть' }),
+      ).toBeInTheDocument();
+      expect(fetchMock.mock.calls.some(([, i]) => i?.method === 'PATCH')).toBe(
+        false,
+      );
     });
   });
 });
