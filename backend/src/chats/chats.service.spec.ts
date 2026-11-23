@@ -4,13 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { AdsService } from '../ads/ads.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatsService } from './chats.service';
 
 describe('ChatsService', () => {
   let service: ChatsService;
+  const ads = { findPublishedOne: jest.fn() };
   const prisma = {
-    ad: { findFirst: jest.fn() },
     chat: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -43,7 +44,11 @@ describe('ChatsService', () => {
     jest.clearAllMocks();
     prisma.message.groupBy.mockResolvedValue([]);
     const moduleRef = await Test.createTestingModule({
-      providers: [ChatsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        ChatsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: AdsService, useValue: ads },
+      ],
     }).compile();
     service = moduleRef.get(ChatsService);
   });
@@ -78,13 +83,11 @@ describe('ChatsService', () => {
   });
 
   it('открывает диалог по опубликованному объявлению без дублей', async () => {
-    prisma.ad.findFirst.mockResolvedValue({ id: 7, authorId: 9 });
+    ads.findPublishedOne.mockResolvedValue({ id: 7, authorId: 9 });
     prisma.chat.upsert.mockResolvedValue({ ...chat, messages: [] });
     const result = await service.open(5, 7);
     expect(result.lastMessage).toBeNull();
-    expect(prisma.ad.findFirst).toHaveBeenCalledWith({
-      where: { id: 7, status: 'PUBLISHED' },
-    });
+    expect(ads.findPublishedOne).toHaveBeenCalledWith(7);
     expect(prisma.chat.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { adId_buyerId: { adId: 7, buyerId: 5 } },
@@ -95,9 +98,11 @@ describe('ChatsService', () => {
   });
 
   it('не открывает диалог по скрытому объявлению и с самим собой', async () => {
-    prisma.ad.findFirst.mockResolvedValue(null);
+    ads.findPublishedOne.mockRejectedValue(
+      new NotFoundException('Объявление не найдено'),
+    );
     await expect(service.open(5, 7)).rejects.toThrow(NotFoundException);
-    prisma.ad.findFirst.mockResolvedValue({ id: 7, authorId: 9 });
+    ads.findPublishedOne.mockResolvedValue({ id: 7, authorId: 9 });
     await expect(service.open(9, 7)).rejects.toThrow(BadRequestException);
     expect(prisma.chat.upsert).not.toHaveBeenCalled();
   });

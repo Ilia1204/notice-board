@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma, type User } from '@prisma/client';
@@ -26,6 +27,15 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Пользователь не найден');
     return toProfile(user);
+  }
+
+  // Для других модулей: есть ли такой пользователь
+  async ensureExists(userId: number): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    if (!user) throw new NotFoundException('Пользователь не найден');
   }
 
   async update(userId: number, dto: UpdateProfileDto): Promise<UserProfile> {

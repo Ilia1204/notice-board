@@ -30,7 +30,7 @@ describe('Favorites (e2e)', () => {
     server()
       .patch(`/ads/${id}/status`)
       .set('Authorization', auth(moderatorToken))
-      .send({ status })
+      .send({ status, reason: 'Нарушает правила' })
       .expect(200);
 
   async function createAd(title: string) {

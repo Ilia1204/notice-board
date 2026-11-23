@@ -1,13 +1,13 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { adInclude } from '../ads/ads.service';
+import { adInclude, AdsService } from '../ads/ads.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { FavoritesService } from './favorites.service';
 
 describe('FavoritesService', () => {
   let service: FavoritesService;
+  const ads = { findPublishedOne: jest.fn() };
   const prisma = {
-    ad: { findFirst: jest.fn() },
     favorite: {
       findMany: jest.fn(),
       upsert: jest.fn(),
@@ -21,6 +21,7 @@ describe('FavoritesService', () => {
       providers: [
         FavoritesService,
         { provide: PrismaService, useValue: prisma },
+        { provide: AdsService, useValue: ads },
       ],
     }).compile();
     service = moduleRef.get(FavoritesService);
@@ -38,11 +39,9 @@ describe('FavoritesService', () => {
   });
 
   it('добавляет опубликованное объявление без дублей', async () => {
-    prisma.ad.findFirst.mockResolvedValue({ id: 7 });
+    ads.findPublishedOne.mockResolvedValue({ id: 7 });
     await service.add(5, 7);
-    expect(prisma.ad.findFirst).toHaveBeenCalledWith({
-      where: { id: 7, status: 'PUBLISHED' },
-    });
+    expect(ads.findPublishedOne).toHaveBeenCalledWith(7);
     expect(prisma.favorite.upsert).toHaveBeenCalledWith({
       where: { userId_adId: { userId: 5, adId: 7 } },
       create: { userId: 5, adId: 7 },
@@ -51,7 +50,9 @@ describe('FavoritesService', () => {
   });
 
   it('не добавляет неопубликованное или несуществующее объявление', async () => {
-    prisma.ad.findFirst.mockResolvedValue(null);
+    ads.findPublishedOne.mockRejectedValue(
+      new NotFoundException('Объявление не найдено'),
+    );
     await expect(service.add(5, 7)).rejects.toThrow(NotFoundException);
     expect(prisma.favorite.upsert).not.toHaveBeenCalled();
   });
