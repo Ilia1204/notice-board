@@ -4,13 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  AdStatus,
-  ComplaintReason,
-  ComplaintStatus,
-  Prisma,
-} from '@prisma/client';
+import { ComplaintReason, ComplaintStatus, Prisma } from '@prisma/client';
+import { AdsService } from '../ads/ads.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { UsersService } from '../users/users.service';
 import type { CreateComplaintDto } from './dto/create-complaint.dto';
 
 export const complaintInclude = {
@@ -32,7 +29,12 @@ export type ComplaintWithRelations = Prisma.ComplaintGetPayload<{
 
 @Injectable()
 export class ComplaintsService {
-  constructor(private readonly prisma: PrismaService) {}
+  // Объявления и пользователи меняются и проверяются только через их сервисы
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ads: AdsService,
+    private readonly users: UsersService,
+  ) {}
 
   async create(
     reporterId: number,
@@ -100,13 +102,10 @@ export class ComplaintsService {
         : { userId: complaint.userId };
     const hidden =
       complaint.adId !== null
-        ? { id: complaint.adId }
-        : { authorId: complaint.userId!, status: AdStatus.PUBLISHED };
+        ? { adId: complaint.adId }
+        : { authorId: complaint.userId! };
     await this.prisma.$transaction([
-      this.prisma.ad.updateMany({
-        where: hidden,
-        data: { status: AdStatus.REJECTED },
-      }),
+      this.ads.hideByComplaint(hidden),
       this.prisma.complaint.updateMany({
         where: { ...target, status: ComplaintStatus.OPEN },
         data,
@@ -121,10 +120,7 @@ export class ComplaintsService {
     userId?: number,
   ): Promise<void> {
     if (adId !== undefined) {
-      const ad = await this.prisma.ad.findFirst({
-        where: { id: adId, status: AdStatus.PUBLISHED },
-      });
-      if (!ad) throw new NotFoundException('Объявление не найдено');
+      const ad = await this.ads.findPublishedOne(adId);
       if (ad.authorId === reporterId) {
         throw new BadRequestException('Нельзя пожаловаться на своё объявление');
       }
@@ -132,10 +128,7 @@ export class ComplaintsService {
       if (userId === reporterId) {
         throw new BadRequestException('Нельзя пожаловаться на себя');
       }
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-      });
-      if (!user) throw new NotFoundException('Пользователь не найден');
+      await this.users.ensureExists(userId!);
     }
   }
 }

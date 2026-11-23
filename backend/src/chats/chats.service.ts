@@ -4,7 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AdStatus, Prisma, type Message } from '@prisma/client';
+import { Prisma, type Message } from '@prisma/client';
+import { AdsService } from '../ads/ads.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const chatInclude = {
@@ -67,7 +68,10 @@ const unreadFor = (userId: number) =>
 
 @Injectable()
 export class ChatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ads: AdsService,
+  ) {}
 
   // Диалоги, где пользователь покупатель или автор объявления; пустые не показываем
   async findAll(userId: number): Promise<ChatSummary[]> {
@@ -103,10 +107,7 @@ export class ChatsService {
 
   // Повторное открытие возвращает уже начатый диалог
   async open(userId: number, adId: number): Promise<ChatSummary> {
-    const ad = await this.prisma.ad.findFirst({
-      where: { id: adId, status: AdStatus.PUBLISHED },
-    });
-    if (!ad) throw new NotFoundException('Объявление не найдено');
+    const ad = await this.ads.findPublishedOne(adId);
     if (ad.authorId === userId) {
       throw new BadRequestException('Нельзя написать самому себе');
     }

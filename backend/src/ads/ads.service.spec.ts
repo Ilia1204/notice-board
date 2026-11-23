@@ -6,7 +6,7 @@ import {
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { adInclude, AdsService } from './ads.service';
+import { adInclude, AdsService, HIDDEN_BY_COMPLAINT } from './ads.service';
 import { ImageStorage } from './image-storage.service';
 
 const prismaError = (code: string) =>
@@ -31,6 +31,7 @@ describe('AdsService', () => {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       delete: jest.fn(),
     },
   };
@@ -180,14 +181,24 @@ describe('AdsService', () => {
       });
     });
 
-    it('меняет статус объявления', async () => {
+    it('отклоняет объявление с причиной', async () => {
       prisma.ad.update.mockResolvedValue({ id: 5, status: 'REJECTED' });
-      await expect(service.moderate(5, 'REJECTED')).resolves.toMatchObject({
-        status: 'REJECTED',
-      });
+      await expect(
+        service.moderate(5, 'REJECTED', 'Нет фото'),
+      ).resolves.toMatchObject({ status: 'REJECTED' });
       expect(prisma.ad.update).toHaveBeenCalledWith({
         where: { id: 5 },
-        data: { status: 'REJECTED' },
+        data: { status: 'REJECTED', rejectReason: 'Нет фото' },
+        include: adInclude,
+      });
+    });
+
+    it('при публикации стирает прежнюю причину', async () => {
+      prisma.ad.update.mockResolvedValue({ id: 5, status: 'PUBLISHED' });
+      await service.moderate(5, 'PUBLISHED', 'лишнее');
+      expect(prisma.ad.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { status: 'PUBLISHED', rejectReason: null },
         include: adInclude,
       });
     });
@@ -204,6 +215,22 @@ describe('AdsService', () => {
       await expect(service.moderate(5, 'PUBLISHED')).rejects.toThrow(
         'connection lost',
       );
+    });
+
+    it('по жалобе на объявление скрывает только его', () => {
+      void service.hideByComplaint({ adId: 5 });
+      expect(prisma.ad.updateMany).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { status: 'REJECTED', rejectReason: HIDDEN_BY_COMPLAINT },
+      });
+    });
+
+    it('по жалобе на продавца скрывает все его опубликованные объявления', () => {
+      void service.hideByComplaint({ authorId: 7 });
+      expect(prisma.ad.updateMany).toHaveBeenCalledWith({
+        where: { authorId: 7, status: 'PUBLISHED' },
+        data: { status: 'REJECTED', rejectReason: HIDDEN_BY_COMPLAINT },
+      });
     });
   });
 
@@ -255,6 +282,7 @@ describe('AdsService', () => {
           price: null,
           categoryId: 1,
           status: 'PENDING',
+          rejectReason: null,
           images: { deleteMany: { id: { in: [] } }, create: [] },
         },
         include: adInclude,

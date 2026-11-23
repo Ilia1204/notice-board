@@ -21,6 +21,7 @@ type AdData = Pick<
   'title' | 'description' | 'price' | 'categoryId' | 'authorId'
 > & { images: { create: { filename: string; position: number }[] } };
 type AdUpdate = Pick<Ad, 'status'> &
+  Partial<Pick<Ad, 'rejectReason'>> &
   Partial<Omit<AdData, 'authorId' | 'images'>> & {
     images?: AdData['images'] & { deleteMany: { id: { in: number[] } } };
   };
@@ -253,6 +254,7 @@ export function createPrismaFake() {
           const ad: Ad = {
             id: nextAdId++,
             status: 'PENDING',
+            rejectReason: null,
             createdAt: now,
             updatedAt: now,
             ...fields,
@@ -287,7 +289,7 @@ export function createPrismaFake() {
         data,
       }: {
         where: Partial<Pick<Ad, 'id' | 'authorId' | 'status'>>;
-        data: Pick<Ad, 'status'>;
+        data: Pick<Ad, 'status' | 'rejectReason'>;
       }) => {
         const found = ads.filter((ad) => matches(ad, where));
         found.forEach((ad) => Object.assign(ad, data));

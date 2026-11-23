@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
+import { serverEmit } from '../test/fake-socket';
 import { mockApi } from '../test/mock-api';
 
 const user = { id: 2, email: 'ivan@mail.ru', name: 'Иван', role: 'USER' };
@@ -21,7 +22,13 @@ const bike = {
   createdAt: '2026-11-01T10:00:00.000Z',
 };
 const sofa = { ...bike, id: 2, title: 'Диван', status: 'PENDING', images: [] };
-const closet = { ...bike, id: 3, title: 'Шкаф', status: 'REJECTED' };
+const closet = {
+  ...bike,
+  id: 3,
+  title: 'Шкаф',
+  status: 'REJECTED',
+  rejectReason: 'Нет фото товара',
+};
 
 function open(hash: string, routes = {}) {
   localStorage.setItem('notice-board.token', 'tok');
@@ -57,6 +64,39 @@ describe('мои объявления', () => {
     expect(within(list).getByText('Опубликовано')).toBeInTheDocument();
     expect(within(list).getByText('На проверке')).toBeInTheDocument();
     expect(within(list).getByText('Отклонено')).toBeInTheDocument();
+  });
+
+  it('у отклонённого показывает причину', async () => {
+    open('#/my-ads', { 'GET /ads/mine': [200, [bike, closet]] });
+    const list = await screen.findByRole('list', { name: 'Мои объявления' });
+    expect(
+      within(list).getByText('Причина: Нет фото товара'),
+    ).toBeInTheDocument();
+    expect(within(list).getAllByText(/Причина:/)).toHaveLength(1);
+  });
+
+  it('после решения модератора обновляет список без перезагрузки', async () => {
+    open('#/my-ads', {
+      'GET /ads/mine': [200, [{ ...closet, status: 'PENDING' }]],
+    });
+    await screen.findByText('На проверке');
+    // Сервер уже знает о решении: следующий запрос вернёт отклонённое
+    mockApi({
+      'GET /auth/me': [200, user],
+      'GET /ads/mine': [200, [closet]],
+    });
+    act(() =>
+      serverEmit('ad:moderated', {
+        id: 3,
+        title: 'Шкаф',
+        status: 'REJECTED',
+        rejectReason: 'Нет фото товара',
+      }),
+    );
+    const list = await screen.findByRole('list', { name: 'Мои объявления' });
+    expect(
+      await within(list).findByText('Причина: Нет фото товара'),
+    ).toBeInTheDocument();
   });
 
   it('объявление не на сайте открывается для редактирования', async () => {

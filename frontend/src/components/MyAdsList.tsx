@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../api/auth-context';
 import { adsApi } from '../api/ads';
+import { useAdModerated } from '../api/socket-context';
 import type { Ad, AdStatus } from '../api/ads';
 import { AdCard } from './AdCard';
 import { FormError } from './FormError';
@@ -31,6 +32,13 @@ export function MyAdsList() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // Модератор принял решение — статус и причина обновляются без перезагрузки
+  useAdModerated(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
 
   async function remove(ad: Ad) {
     if (!window.confirm(`Удалить объявление «${ad.title}»?`)) return;
@@ -81,6 +89,9 @@ export function MyAdsList() {
                   </button>
                 </div>
               </div>
+              {ad.status === 'REJECTED' && ad.rejectReason && (
+                <p className="my-ad__reason">Причина: {ad.rejectReason}</p>
+              )}
             </li>
           ))}
         </ul>

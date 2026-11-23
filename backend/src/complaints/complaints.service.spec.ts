@@ -4,14 +4,20 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { AdsService } from '../ads/ads.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { UsersService } from '../users/users.service';
 import { complaintInclude, ComplaintsService } from './complaints.service';
 
 describe('ComplaintsService', () => {
   let service: ComplaintsService;
+  const hideQuery = Promise.resolve({ count: 1 });
+  const ads = {
+    findPublishedOne: jest.fn(),
+    hideByComplaint: jest.fn(() => hideQuery),
+  };
+  const users = { ensureExists: jest.fn() };
   const prisma = {
-    ad: { findFirst: jest.fn(), updateMany: jest.fn() },
-    user: { findUnique: jest.fn() },
     complaint: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -33,13 +39,15 @@ describe('ComplaintsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    prisma.ad.findFirst.mockResolvedValue({ id: 7, authorId: 9 });
-    prisma.user.findUnique.mockResolvedValue({ id: 9 });
+    ads.findPublishedOne.mockResolvedValue({ id: 7, authorId: 9 });
+    users.ensureExists.mockResolvedValue(undefined);
     prisma.complaint.findFirst.mockResolvedValue(null);
     const moduleRef = await Test.createTestingModule({
       providers: [
         ComplaintsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: AdsService, useValue: ads },
+        { provide: UsersService, useValue: users },
       ],
     }).compile();
     service = moduleRef.get(ComplaintsService);
@@ -48,9 +56,7 @@ describe('ComplaintsService', () => {
   describe('create', () => {
     it('сохраняет жалобу на опубликованное объявление', async () => {
       await service.create(5, { adId: 7, reason: 'FRAUD', comment: '' });
-      expect(prisma.ad.findFirst).toHaveBeenCalledWith({
-        where: { id: 7, status: 'PUBLISHED' },
-      });
+      expect(ads.findPublishedOne).toHaveBeenCalledWith(7);
       expect(prisma.complaint.create).toHaveBeenCalledWith({
         data: {
           reporterId: 5,
@@ -65,9 +71,7 @@ describe('ComplaintsService', () => {
 
     it('сохраняет жалобу на пользователя', async () => {
       await service.create(5, { userId: 9, reason: 'OFFENSIVE' });
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { id: 9 },
-      });
+      expect(users.ensureExists).toHaveBeenCalledWith(9);
       expect(prisma.complaint.create).toHaveBeenCalled();
     });
 
@@ -97,8 +101,12 @@ describe('ComplaintsService', () => {
     });
 
     it('не находит скрытое объявление или пользователя', async () => {
-      prisma.ad.findFirst.mockResolvedValue(null);
-      prisma.user.findUnique.mockResolvedValue(null);
+      ads.findPublishedOne.mockRejectedValue(
+        new NotFoundException('Объявление не найдено'),
+      );
+      users.ensureExists.mockRejectedValue(
+        new NotFoundException('Пользователь не найден'),
+      );
       await expect(
         service.create(5, { adId: 7, reason: 'SPAM' }),
       ).rejects.toThrow(NotFoundException);
@@ -131,10 +139,9 @@ describe('ComplaintsService', () => {
     it('принятая жалоба скрывает объявление и закрывает жалобы на него', async () => {
       prisma.complaint.findUnique.mockResolvedValue(open);
       await service.resolve(3, 'ACCEPTED');
-      expect(prisma.ad.updateMany).toHaveBeenCalledWith({
-        where: { id: 7 },
-        data: { status: 'REJECTED' },
-      });
+      // Объявление скрывает AdsService, в одной транзакции с жалобами
+      expect(ads.hideByComplaint).toHaveBeenCalledWith({ adId: 7 });
+      expect(prisma.$transaction).toHaveBeenCalledWith([hideQuery, undefined]);
       expect(prisma.complaint.updateMany).toHaveBeenCalledWith({
         where: { adId: 7, status: 'OPEN' },
         data: { status: 'ACCEPTED', resolvedAt: expect.any(Date) as Date },
@@ -148,10 +155,7 @@ describe('ComplaintsService', () => {
         userId: 9,
       });
       await service.resolve(3, 'ACCEPTED');
-      expect(prisma.ad.updateMany).toHaveBeenCalledWith({
-        where: { authorId: 9, status: 'PUBLISHED' },
-        data: { status: 'REJECTED' },
-      });
+      expect(ads.hideByComplaint).toHaveBeenCalledWith({ authorId: 9 });
       expect(prisma.complaint.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { userId: 9, status: 'OPEN' } }),
       );
@@ -160,7 +164,7 @@ describe('ComplaintsService', () => {
     it('отклонённая жалоба ничего не скрывает', async () => {
       prisma.complaint.findUnique.mockResolvedValue(open);
       await service.resolve(3, 'DISMISSED');
-      expect(prisma.ad.updateMany).not.toHaveBeenCalled();
+      expect(ads.hideByComplaint).not.toHaveBeenCalled();
       expect(prisma.complaint.updateMany).toHaveBeenCalledWith({
         where: { id: 3 },
         data: { status: 'DISMISSED', resolvedAt: expect.any(Date) as Date },

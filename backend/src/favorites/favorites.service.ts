@@ -1,11 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AdStatus } from '@prisma/client';
-import { adInclude, type AdWithRelations } from '../ads/ads.service';
+import {
+  adInclude,
+  AdsService,
+  type AdWithRelations,
+} from '../ads/ads.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class FavoritesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ads: AdsService,
+  ) {}
 
   // Снятое с публикации объявление не показываем, но и не забываем:
   // после повторной проверки оно вернётся в избранное
@@ -20,10 +27,7 @@ export class FavoritesService {
 
   // Повторное добавление не считается ошибкой
   async add(userId: number, adId: number): Promise<void> {
-    const ad = await this.prisma.ad.findFirst({
-      where: { id: adId, status: AdStatus.PUBLISHED },
-    });
-    if (!ad) throw new NotFoundException('Объявление не найдено');
+    await this.ads.findPublishedOne(adId);
     await this.prisma.favorite.upsert({
       where: { userId_adId: { userId, adId } },
       create: { userId, adId },

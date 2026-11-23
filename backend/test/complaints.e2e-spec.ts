@@ -48,13 +48,15 @@ describe('Complaints (e2e)', () => {
       .patch(`/complaints/${id}`)
       .set('Authorization', auth(token))
       .send({ status });
-  const adStatus = async (id: number) => {
+  const ownAd = async (id: number) => {
     const res = await server()
       .get(`/ads/mine/${id}`)
       .set('Authorization', auth(sellerToken))
       .expect(200);
-    return (res.body as { status: string }).status;
+    return res.body as { status: string; rejectReason: string | null };
   };
+  const adStatus = async (id: number) => (await ownAd(id)).status;
+  const adReason = async (id: number) => (await ownAd(id)).rejectReason;
 
   async function createAd(title: string, status = 'PUBLISHED') {
     const res = await server()
@@ -67,7 +69,7 @@ describe('Complaints (e2e)', () => {
       await server()
         .patch(`/ads/${id}/status`)
         .set('Authorization', auth(moderatorToken))
-        .send({ status })
+        .send({ status, reason: 'Нарушает правила' })
         .expect(200);
     }
     return id;
@@ -144,6 +146,9 @@ describe('Complaints (e2e)', () => {
     const [first] = await queue();
     await resolve(first.id, 'ACCEPTED').expect(204);
     expect(await adStatus(first.ad!.id)).toBe('REJECTED');
+    expect(await adReason(first.ad!.id)).toBe(
+      'Скрыто модератором по жалобе пользователей',
+    );
     expect(await queue()).toEqual([]);
     await server().get(`/ads/${first.ad!.id}`).expect(404);
     await resolve(first.id, 'DISMISSED').expect(409);

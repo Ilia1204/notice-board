@@ -1,4 +1,8 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Prisma, Role, type User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -36,6 +40,22 @@ describe('UsersService', () => {
       providers: [UsersService, { provide: PrismaService, useValue: prisma }],
     }).compile();
     service = moduleRef.get(UsersService);
+  });
+
+  describe('ensureExists', () => {
+    it('пропускает существующего пользователя', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 1 });
+      await expect(service.ensureExists(1)).resolves.toBeUndefined();
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 },
+        select: { id: true },
+      });
+    });
+
+    it('сообщает, если пользователя нет', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      await expect(service.ensureExists(1)).rejects.toThrow(NotFoundException);
+    });
   });
 
   describe('getProfile', () => {

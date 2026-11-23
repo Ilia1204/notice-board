@@ -48,23 +48,25 @@ enum AdStatus {
 }
 
 model Ad {
-  id          Int         @id @default(autoincrement())
-  title       String
-  description String
+  id           Int         @id @default(autoincrement())
+  title        String
+  description  String
   // Цена в рублях; null — «договорная»
-  price       Int?
+  price        Int?
   // Категорию с объявлениями удалить нельзя
-  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  categoryId  Int         @map("category_id")
-  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId    Int         @map("author_id")
-  status      AdStatus    @default(PENDING)
-  images      AdImage[]
-  favorites   Favorite[]
-  chats       Chat[]
-  complaints  Complaint[]
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  category     Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  categoryId   Int         @map("category_id")
+  author       User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId     Int         @map("author_id")
+  status       AdStatus    @default(PENDING)
+  // Почему модератор отклонил или скрыл объявление; видит только автор
+  rejectReason String?     @map("reject_reason")
+  images       AdImage[]
+  favorites    Favorite[]
+  chats        Chat[]
+  complaints   Complaint[]
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
   @@index([categoryId])
   @@index([authorId])

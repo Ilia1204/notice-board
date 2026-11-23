@@ -302,11 +302,16 @@ describe('Ads (e2e)', () => {
   describe('модерация', () => {
     let adId: number;
     const as = (token: string) => `Bearer ${token}`;
-    const decide = (id: number, status: string, token = moderatorToken) =>
+    const decide = (
+      id: number,
+      status: string,
+      token = moderatorToken,
+      reason: string | null = 'Нет фото товара',
+    ) =>
       server()
         .patch(`/ads/${id}/status`)
         .set('Authorization', as(token))
-        .send({ status });
+        .send({ status, reason: reason ?? undefined });
 
     beforeEach(async () => {
       const res = await server()
@@ -353,14 +358,31 @@ describe('Ads (e2e)', () => {
       await server().get(`/ads/${adId}`).expect(200);
     });
 
-    it('отклонённое на сайт не попадает, автор его видит', async () => {
+    it('отклонённое на сайт не попадает, автор видит причину', async () => {
       await decide(adId, 'REJECTED').expect(200);
       expect(await publishedIds()).not.toContain(adId);
       const res = await server()
         .get(`/ads/mine/${adId}`)
         .set('Authorization', as(userToken))
         .expect(200);
-      expect(res.body).toMatchObject({ status: 'REJECTED' });
+      expect(res.body).toMatchObject({
+        status: 'REJECTED',
+        rejectReason: 'Нет фото товара',
+      });
+    });
+
+    it.each([null, '   '])('без причины не отклоняет: %p', async (reason) => {
+      const res = await decide(adId, 'REJECTED', moderatorToken, reason);
+      expect(res.status).toBe(400);
+      expect((res.body as { message: string[] }).message).toContain(
+        'Укажите причину отклонения',
+      );
+      expect(prisma.ads.find((ad) => ad.id === adId)!.status).toBe('PENDING');
+    });
+
+    it('при публикации причина не сохраняется', async () => {
+      const res = await decide(adId, 'PUBLISHED').expect(200);
+      expect(res.body).toMatchObject({ rejectReason: null });
     });
 
     it('скрытое модератором объявление пропадает из списка', async () => {
@@ -372,11 +394,16 @@ describe('Ads (e2e)', () => {
 
     it('исправленное отклонённое снова попадает в очередь', async () => {
       await decide(adId, 'REJECTED').expect(200);
-      await server()
+      const edited = await server()
         .patch(`/ads/${adId}`)
         .set('Authorization', as(userToken))
         .send(bike)
         .expect(200);
+      // Старая причина к исправленному тексту уже не относится
+      expect(edited.body).toMatchObject({
+        status: 'PENDING',
+        rejectReason: null,
+      });
       const res = await server()
         .get('/ads/moderation')
         .set('Authorization', as(moderatorToken))

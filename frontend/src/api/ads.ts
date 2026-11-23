@@ -9,10 +9,14 @@ export interface Ad {
   description: string;
   price: number | null;
   status: AdStatus;
+  // Почему модератор отклонил объявление; у остальных null
+  rejectReason: string | null;
   category: { id: number; name: string };
   author: { id: number; name: string };
   images: { id: number; filename: string }[];
   createdAt: string;
+  // Меняется при каждой правке: для очереди модератора это время отправки на проверку
+  updatedAt?: string;
 }
 
 export const MAX_IMAGES = 10;
@@ -44,10 +48,16 @@ export const adsApi = {
   getMine: (id: number, token: string) =>
     apiRequest<Ad>(`/ads/mine/${id}`, { token }),
   pending: (token: string) => apiRequest<Ad[]>('/ads/moderation', { token }),
-  moderate: (id: number, status: ModerationDecision, token: string) =>
+  // Причину сервер требует только при отклонении
+  moderate: (
+    id: number,
+    status: ModerationDecision,
+    token: string,
+    reason?: string,
+  ) =>
     apiRequest<Ad>(`/ads/${id}/status`, {
       method: 'PATCH',
-      body: { status },
+      body: { status, reason },
       token,
     }),
   // Поля и фото уходят одной формой multipart/form-data

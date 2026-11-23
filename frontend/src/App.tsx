@@ -2,6 +2,7 @@ import { HashRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from './components/AuthProvider';
 import { FavoritesProvider } from './components/FavoritesProvider';
 import { Header } from './components/Header';
+import { ModerationNotice } from './components/ModerationNotice';
 import { RequireRole } from './components/RequireRole';
 import { SocketProvider } from './components/SocketProvider';
 import { UnreadProvider } from './components/UnreadProvider';
@@ -29,6 +30,7 @@ function App() {
           <FavoritesProvider>
             <HashRouter>
               <Header />
+              <ModerationNotice />
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/login" element={<LoginPage />} />

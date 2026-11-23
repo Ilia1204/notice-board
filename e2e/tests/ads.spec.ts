@@ -182,16 +182,29 @@ test.describe('Т5. Редактирование и удаление объяв�
 test.describe('Т6. Модерация объявлений', () => {
   // Название с меткой времени: очередь общая для всех тестов
   async function submitAd(page: Page) {
-    const title = `Проверка ${Date.now()}${Math.floor(Math.random() * 1000)}`;
     await register(page, uniqueUser());
+    const title = await fillAd(page);
+    await page.getByRole('button', { name: 'Выйти' }).click();
+    return title;
+  }
+
+  // Подаёт объявление от вошедшего пользователя
+  async function fillAd(page: Page) {
+    const title = `Проверка ${Date.now()}${Math.floor(Math.random() * 1000)}`;
     await page.goto('/#/ads/new');
     await page.getByLabel('Заголовок').fill(title);
     await page.getByLabel('Категория').selectOption({ label: 'Услуги' });
     await page.getByLabel('Описание').fill('Объявление для модератора');
     await page.getByRole('button', { name: 'Опубликовать' }).click();
     await expect(page.getByText('отправлено на модерацию')).toBeVisible();
-    await page.getByRole('button', { name: 'Выйти' }).click();
     return title;
+  }
+
+  // Отклонить или скрыть можно только с причиной для автора
+  async function giveReason(page: Page, reason: string, submit: string) {
+    const form = page.getByRole('form');
+    await form.getByRole('button', { name: reason }).click();
+    await form.getByRole('button', { name: submit }).click();
   }
 
   async function openQueue(page: Page) {
@@ -221,8 +234,8 @@ test.describe('Т6. Модерация объявлений', () => {
     await page.getByRole('button', { name: 'Найти' }).click();
     await page.getByRole('link', { name: new RegExp(title) }).click();
 
-    page.once('dialog', (dialog) => void dialog.accept());
     await page.getByRole('button', { name: 'Скрыть' }).click();
+    await giveReason(page, 'Запрещённый товар или услуга', 'Скрыть');
     await expect(page.getByRole('heading', { name: 'Рубрики' })).toBeVisible();
 
     await page.getByRole('searchbox', { name: /Поиск/ }).fill(title);
@@ -236,12 +249,56 @@ test.describe('Т6. Модерация объявлений', () => {
 
     const item = queueItem(page, title);
     await item.getByRole('button', { name: 'Отклонить' }).click();
+    await giveReason(page, 'Не та рубрика', 'Отклонить');
     await expect(item).toBeHidden();
 
     await page.goto('/');
     await page.getByRole('searchbox', { name: /Поиск/ }).fill(title);
     await page.getByRole('button', { name: 'Найти' }).click();
     await expect(page.getByText('Ничего не нашлось')).toBeVisible();
+  });
+
+  test('автор сразу узнаёт причину отказа и видит её при правке', async ({
+    page,
+    browser,
+  }) => {
+    await register(page, uniqueUser());
+    const title = await fillAd(page);
+
+    const moderatorContext = await browser.newContext();
+    const moderator = await moderatorContext.newPage();
+    await openQueue(moderator);
+    const item = queueItem(moderator, title);
+    await item.getByRole('button', { name: 'Отклонить' }).click();
+    await item
+      .getByLabel('Причина для автора')
+      .fill('Добавьте фото и опишите услугу подробнее');
+    await item.getByRole('button', { name: 'Отклонить' }).click();
+    await expect(item).toBeHidden();
+    await moderatorContext.close();
+
+    // Автор ничего не перезагружал: сообщение пришло по WebSocket
+    const notice = page.getByRole('status').filter({ hasText: title });
+    await expect(notice).toContainText('отклонено');
+    await expect(notice).toContainText(
+      'Причина: Добавьте фото и опишите услугу подробнее',
+    );
+    await notice.getByRole('link', { name: 'Исправить' }).click();
+    await expect(
+      page.getByText(
+        'Модератор отклонил объявление. Причина: Добавьте фото и опишите услугу подробнее',
+      ),
+    ).toBeVisible();
+
+    await page.goto('/#/my-ads');
+    const card = page
+      .getByRole('list', { name: 'Мои объявления' })
+      .getByRole('listitem')
+      .filter({ hasText: title });
+    await expect(card).toContainText('Отклонено');
+    await expect(card).toContainText(
+      'Причина: Добавьте фото и опишите услугу подробнее',
+    );
   });
 
   test('обычному пользователю очередь недоступна', async ({ page }) => {
