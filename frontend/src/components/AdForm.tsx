@@ -175,8 +175,9 @@ export function AdForm({
     // Пустая цена — «договорная»
     if (String(form.get('price')).trim() === '') form.delete('price');
     images.forEach((image) => form.append('images', image));
+    // Сравниваем по id: объявление могло загрузиться повторно новыми объектами
     ad?.images
-      .filter((image) => !saved.includes(image))
+      .filter((image) => !saved.some((kept) => kept.id === image.id))
       .forEach((image) => form.append('removeImageIds', String(image.id)));
     setError(null);
     setPending(true);
