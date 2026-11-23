@@ -20,6 +20,7 @@ import type { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { AdImagesInterceptor } from './ad-images.interceptor';
+import { AdsGateway } from './ads.gateway';
 import { AdsService, type AdWithRelations } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { ListAdsDto } from './dto/list-ads.dto';
@@ -28,7 +29,10 @@ import { UpdateAdDto } from './dto/update-ad.dto';
 
 @Controller('ads')
 export class AdsController {
-  constructor(private readonly adsService: AdsService) {}
+  constructor(
+    private readonly adsService: AdsService,
+    private readonly adsGateway: AdsGateway,
+  ) {}
 
   // Список объявлений доступен всем, в том числе гостям
   @Get()
@@ -76,15 +80,18 @@ export class AdsController {
     return this.adsService.create(user.sub, dto, files);
   }
 
-  // Опубликовать, отклонить или скрыть объявление может только модератор
+  // Опубликовать, отклонить или скрыть объявление может только модератор.
+  // Автор, если он на сайте, сразу узнаёт о решении
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.MODERATOR)
-  moderate(
+  async moderate(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ModerateAdDto,
   ): Promise<AdWithRelations> {
-    return this.adsService.moderate(id, dto.status);
+    const ad = await this.adsService.moderate(id, dto.status, dto.reason);
+    this.adsGateway.notifyModerated(ad);
+    return ad;
   }
 
   // Менять и удалять объявление может только его автор

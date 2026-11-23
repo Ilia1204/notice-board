@@ -13,6 +13,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import type { Server, Socket } from 'socket.io';
 import type { JwtPayload } from '../auth/auth.types';
+import { userRoom } from '../common/user-room';
 import {
   ChatsService,
   type ReadReceipt,
@@ -22,9 +23,6 @@ import { WsSendMessageDto } from './dto/ws-send-message.dto';
 
 // Ответ на событие message:send: сообщение или текст ошибки для пользователя
 export type SendAck = { message: Message } | { error: string };
-
-// У каждого пользователя своя комната: так сообщение дойдёт во все его вкладки
-export const userRoom = (userId: number) => `user:${userId}`;
 
 @WebSocketGateway()
 export class ChatsGateway implements OnGatewayConnection {

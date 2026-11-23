@@ -24,6 +24,7 @@ describe('Chats realtime (e2e)', () => {
   let sellerToken: string;
   let buyerToken: string;
   let otherToken: string;
+  let moderatorToken: string;
   const sockets: Socket[] = [];
 
   const server = () => request(app.getHttpServer());
@@ -68,7 +69,7 @@ describe('Chats realtime (e2e)', () => {
     await app.listen(0);
     url = await app.getUrl();
 
-    const moderatorToken = await app.get(JwtService).signAsync({
+    moderatorToken = await app.get(JwtService).signAsync({
       sub: 100,
       email: 'moderator@board.local',
       role: 'MODERATOR',
@@ -111,6 +112,41 @@ describe('Chats realtime (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  it('автор сразу узнаёт, что объявление отклонено, и почему', async () => {
+    const seller = await connect(sellerToken);
+    const buyer = await connect(buyerToken);
+    const heard = jest.fn();
+    buyer.on('ad:moderated', heard);
+    const ad = await server()
+      .post('/ads')
+      .set('Authorization', auth(sellerToken))
+      .send({
+        title: 'Самокат',
+        description: 'Детский, складной',
+        categoryId: 1,
+      })
+      .expect(201);
+    const adId = (ad.body as { id: number }).id;
+    const received = new Promise((resolve) =>
+      seller.once('ad:moderated', resolve),
+    );
+
+    await server()
+      .patch(`/ads/${adId}/status`)
+      .set('Authorization', auth(moderatorToken))
+      .send({ status: 'REJECTED', reason: 'Нет фото' })
+      .expect(200);
+
+    await expect(received).resolves.toEqual({
+      id: adId,
+      title: 'Самокат',
+      status: 'REJECTED',
+      rejectReason: 'Нет фото',
+    });
+    // Покупателю чужие решения модератора не приходят
+    expect(heard).not.toHaveBeenCalled();
   });
 
   it('без токена соединение закрывается', async () => {

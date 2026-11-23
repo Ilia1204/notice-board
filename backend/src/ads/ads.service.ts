@@ -25,6 +25,8 @@ export const adInclude = {
   },
 } satisfies Prisma.AdInclude;
 
+export const HIDDEN_BY_COMPLAINT = 'Скрыто модератором по жалобе пользователей';
+
 export type AdWithRelations = Prisma.AdGetPayload<{
   include: typeof adInclude;
 }>;
@@ -67,11 +69,19 @@ export class AdsService {
     });
   }
 
-  async moderate(id: number, status: AdStatus): Promise<AdWithRelations> {
+  // Причина хранится только у отклонённого: после публикации она не нужна
+  async moderate(
+    id: number,
+    status: AdStatus,
+    reason?: string,
+  ): Promise<AdWithRelations> {
     try {
       return await this.prisma.ad.update({
         where: { id },
-        data: { status },
+        data: {
+          status,
+          rejectReason: status === AdStatus.REJECTED ? reason : null,
+        },
         include: adInclude,
       });
     } catch (error) {
@@ -83,6 +93,22 @@ export class AdsService {
       }
       throw error;
     }
+  }
+
+  // Скрытие по принятой жалобе: одно объявление или все опубликованные
+  // объявления продавца. Запрос возвращается невыполненным, чтобы жалобы
+  // закрывались с ним в одной транзакции
+  hideByComplaint(
+    target: { adId: number } | { authorId: number },
+  ): Prisma.PrismaPromise<Prisma.BatchPayload> {
+    const where =
+      'adId' in target
+        ? { id: target.adId }
+        : { authorId: target.authorId, status: AdStatus.PUBLISHED };
+    return this.prisma.ad.updateMany({
+      where,
+      data: { status: AdStatus.REJECTED, rejectReason: HIDDEN_BY_COMPLAINT },
+    });
   }
 
   // Автору видны все его объявления, в том числе непрошедшие проверку
@@ -153,8 +179,9 @@ export class AdsService {
           description: dto.description.trim(),
           price: dto.price ?? null,
           categoryId: dto.categoryId,
-          // Изменённый текст модератор ещё не видел
+          // Изменённый текст модератор ещё не видел, прежняя причина неактуальна
           status: AdStatus.PENDING,
+          rejectReason: null,
           images: {
             deleteMany: { id: { in: removed.map((image) => image.id) } },
             create: filenames.map((filename, i) => ({

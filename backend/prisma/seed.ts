@@ -141,6 +141,7 @@ const MARKET_ADS: {
   price: number;
   category: string;
   status: AdStatus;
+  rejectReason?: string;
   daysAgo: number;
 }[] = [
   {
@@ -277,6 +278,8 @@ const MARKET_ADS: {
     price: 3500,
     category: 'Одежда и обувь',
     status: AdStatus.REJECTED,
+    rejectReason:
+      'Слишком короткое описание: укажите состояние и длину стельки',
     daysAgo: 10,
   },
   {

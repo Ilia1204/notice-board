@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { AdsController } from './ads.controller';
+import { AdsGateway } from './ads.gateway';
 import { AdsService } from './ads.service';
 
 describe('AdsController', () => {
@@ -15,12 +16,16 @@ describe('AdsController', () => {
     update: jest.fn(),
     remove: jest.fn(),
   };
+  const gateway = { notifyModerated: jest.fn() };
   const user = { sub: 5, email: 'a@b.c', role: 'USER' as const };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [AdsController],
-      providers: [{ provide: AdsService, useValue: service }],
+      providers: [
+        { provide: AdsService, useValue: service },
+        { provide: AdsGateway, useValue: gateway },
+      ],
     }).compile();
     controller = moduleRef.get(AdsController);
   });
@@ -55,7 +60,17 @@ describe('AdsController', () => {
     await controller.findPending();
     expect(service.findPending).toHaveBeenCalled();
     await controller.moderate(7, { status: 'PUBLISHED' });
-    expect(service.moderate).toHaveBeenCalledWith(7, 'PUBLISHED');
+    expect(service.moderate).toHaveBeenCalledWith(7, 'PUBLISHED', undefined);
+  });
+
+  it('передаёт причину отклонения и сообщает автору о решении', async () => {
+    const ad = { id: 7, authorId: 5, status: 'REJECTED' };
+    service.moderate.mockResolvedValue(ad);
+    await expect(
+      controller.moderate(7, { status: 'REJECTED', reason: 'Нет фото' }),
+    ).resolves.toBe(ad);
+    expect(service.moderate).toHaveBeenCalledWith(7, 'REJECTED', 'Нет фото');
+    expect(gateway.notifyModerated).toHaveBeenCalledWith(ad);
   });
 
   it('меняет и удаляет объявление от имени текущего пользователя', async () => {
